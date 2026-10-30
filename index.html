@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>黎明祭 モバイルオーダー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><small>黎明祭</small><b id="shop"></b></div>
+    <div class="spacer"></div>
+    <div class="who" id="who" hidden></div>
+  </header>
+  <div class="demo" id="demo" hidden>デモモード <a href="staff.html" target="_blank">スタッフ画面</a><button id="reset" type="button">リセット</button></div>
+
+  <div class="banner closed" id="closed" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" class="line"/><path d="M12 7v5l3 2" class="line"/></svg>
+    ただいま受付を停止しています
+  </div>
+
+  <section id="tickets" class="tickets" aria-live="polite"></section>
+
+  <div class="price-note" id="priceNote"></div>
+  <section class="menu-book" id="menu" aria-label="メニュー"></section>
+  <p class="loading" id="loading">メニューを読み込んでいます…</p>
+</div>
+
+<div class="bar" id="bar" hidden>
+  <div class="in">
+    <div class="cart-cups" id="cartCups"></div>
+    <div class="sum"><b id="cartCount"></b><span id="cartHint"></span></div>
+    <button class="go" id="toCheckout" type="button">注文へ</button>
+  </div>
+</div>
+
+<div class="sheet-bg" id="sheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-head"><h2 id="sheetTitle">注文の確認</h2><button class="x" id="closeSheet" type="button" aria-label="閉じる">×</button></div>
+    <ul class="lines" id="lines"></ul>
+    <div id="pick"></div>
+    <p class="err" id="sheetErr" hidden></p>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="js/customer.js"></script>
+</body>
+</html>
