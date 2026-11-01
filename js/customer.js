@@ -132,9 +132,7 @@ function render() {
     $("out").onclick = () => { token = null; me = null; saveToken(null); render(); };
   }
   const scope = st.freeScope === "total" ? "期間中" : "1日";
-  $("priceNote").innerHTML =
-    `<span class="tagp paid">${COIN_ICON}1杯 ${yen(st.price)}</span>` +
-    (st.freeLimit ? `<span class="tagp free">${ID_ICON}学部生は${scope}${st.freeLimit}杯無料</span>` : "");
+  $("priceNote").textContent = `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
 
   $("menu").innerHTML = groupMenu(st.menu).map((g) => `
     <article class="dish">
@@ -217,25 +215,42 @@ function renderSheet() {
   });
 }
 
+// 受け渡し用のQR：スタッフのスマホで読み取ると受け取りが記録される
+function pickupURL(id) {
+  const u = new URL("pickup.html", location.href);
+  u.search = "";
+  u.searchParams.set("o", id);
+  if (DEMO) u.searchParams.set("demo", "");
+  return u.href;
+}
+function qrSVG(text) {
+  if (typeof qrcode !== "function") return "";
+  const q = qrcode(0, "M");
+  q.addData(text);
+  q.make();
+  return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+}
+
 function renderTickets() {
   const active = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
   const past = orders.filter((o) => o.status === "done").slice(0, 2);
   $("tickets").innerHTML = active.map((o) => {
     const idx = STEPS.findIndex(([s]) => s === o.status);
     const ready = o.status === "ready";
-    const need = [o.free ? `<span class="tagp free">${ID_ICON}学生証</span>` : "", o.total ? `<span class="tagp paid">${COIN_ICON}${yen(o.total)} 現金</span>` : ""].join("");
-    return `<article class="ticket ${ready ? "ready" : ""}">
-      <div class="no"><small>注文番号</small>${pad(o.no)}</div>
-      <div class="what">${o.lines.map((l) => `<span class="ln">${cupSVG({ ...l, color: byCode(l.code)?.color })}${esc(lineName(l))}${l.qty > 1 ? ` ×${l.qty}` : ""}</span>`).join("")}</div>
-      <div class="need-row">${need}</div>
-      <div class="steps">
-        <div class="bar-fill" style="width:${idx * 34}%"></div>
-        ${STEPS.map(([s, t], i) => `<div class="step ${i < idx ? "done" : ""} ${i === idx ? "now" : ""} ${s === "ready" ? "bell" : ""}"><i>${STEP_ICONS[s]}</i>${t}</div>`).join("")}
-      </div>
-      ${ready ? `<div class="show">カウンターで受け取ってください</div>` : ""}
-      ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">取り消す</button>` : ""}
+    const need = [
+      o.free ? `<span class="need-big id">${ID_ICON}学生証を見せる</span>` : "",
+      o.total ? `<span class="need-big cash">${COIN_ICON}${yen(o.total)}を払う</span>` : "",
+    ].join("");
+    return `<article class="show ${ready ? "ready" : ""}">
+      <p class="show-hint">この画面を店員さんに見せてね</p>
+      <div class="show-no"><small>注文番号</small>${pad(o.no)}</div>
+      <ul class="big-items">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
+      <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
+      <div class="needs">${need}</div>
+      <div class="dots" aria-label="${STEPS[idx][1]}">${STEPS.map(([s, t], i) => `<span class="${i < idx ? "done" : ""} ${i === idx ? "now" : ""}"><i>${STEP_ICONS[s]}</i>${t}</span>`).join("")}</div>
+      ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">注文を取り消す</button>` : ""}
     </article>`;
-  }).join("") + past.map((o) => `<article class="ticket past"><div class="no">${pad(o.no)}</div><div class="what">受け取り済み</div></article>`).join("");
+  }).join("") + past.map((o) => `<p class="past">${pad(o.no)}　受け取り済み</p>`).join("");
 
   const readyIds = new Set(active.filter((o) => o.status === "ready").map((o) => o.id));
   for (const id of readyIds) if (!lastReady.has(id)) { try { navigator.vibrate?.([200, 100, 200]); } catch {} }

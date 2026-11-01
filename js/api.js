@@ -1,7 +1,7 @@
 // サーバー（Apps Script）とのやりとり。API_URL が無ければブラウザ内のデモサーバーを使う。
 import { API_URL, GOOGLE_CLIENT_ID, STUDENT_DOMAIN } from "./config.js";
 
-export const DEMO = !API_URL;
+export const DEMO = !API_URL || new URLSearchParams(location.search).has("demo");
 
 export async function call(action, payload = {}) {
   if (DEMO) return demoCall(action, payload);
@@ -30,6 +30,15 @@ export function savedToken() {
 }
 export function saveToken(t) {
   try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch {}
+}
+
+// スタッフの合言葉（QRを読み取るスマホでも使えるよう localStorage に置く）
+const STAFF_KEY = "reimei-order-staff";
+export function savedStaffKey() {
+  try { return localStorage.getItem(STAFF_KEY); } catch { return null; }
+}
+export function saveStaffKey(k) {
+  try { k ? localStorage.setItem(STAFF_KEY, k) : localStorage.removeItem(STAFF_KEY); } catch {}
 }
 
 let gisLoaded = null;
@@ -85,7 +94,7 @@ function demoLoad() {
   };
 }
 function demoSave(s) { try { localStorage.setItem(K, JSON.stringify(s)); } catch {} }
-export function resetDemo() { localStorage.removeItem(K); sessionStorage.clear(); location.reload(); }
+export function resetDemo() { localStorage.removeItem(K); localStorage.removeItem(STAFF_KEY); sessionStorage.clear(); location.reload(); }
 
 function demoUser(token) {
   if (!token?.startsWith("demo:")) return null;
@@ -103,7 +112,7 @@ function demoMenu(s) {
 function demoGroup(rows) {
   const map = {};
   for (const r of rows) {
-    const o = (map[r.id] ??= { id: r.id, no: r.no, day: r.day, time: r.time, type: r.type, email: r.email, byStaff: r.byStaff, status: r.status, secret: r.secret, lines: [], total: 0, free: 0 });
+    const o = (map[r.id] ??= { id: r.id, no: r.no, day: r.day, time: r.time, type: r.type, email: r.email, byStaff: r.byStaff, status: r.status, secret: r.secret, lines: [], total: 0, free: 0, pickedBy: r.by || "", pickedAt: r.at || 0 });
     o.lines.push({ code: r.code, name: r.name, variant: r.variant, qty: r.qty });
     o.total += r.amount;
     o.free += r.free;
@@ -119,7 +128,7 @@ async function demoCall(action, p) {
   const s = demoLoad();
   const c = s.config;
   const pub = () => ({ ...c, menu: demoMenu(s) });
-  const staff = () => { if (!demoUser(p.idToken)?.isStaff) fail("notStaff"); };
+  const staff = () => { if (p.staffKey !== "demo-key" && !demoUser(p.idToken)?.isStaff) fail("notStaff"); };
   const freeLeft = (email) => Math.max(0, c.freeLimit - s.rows
     .filter((r) => r.email === email && r.status !== "cancel" && (c.freeScope === "total" || r.day === c.day))
     .reduce((a, r) => a + r.free, 0));
@@ -129,7 +138,22 @@ async function demoCall(action, p) {
     case "me": {
       const u = demoUser(p.idToken);
       if (!u) fail("auth");
-      return { ...u, freeLeft: u.isStudent ? freeLeft(u.email) : 0 };
+      return { ...u, staffKey: u.isStaff ? "demo-key" : null, freeLeft: u.isStudent ? freeLeft(u.email) : 0 };
+    }
+    case "staffMe":
+      staff();
+      return { email: "staff@example.com" };
+    case "pickup": {
+      staff();
+      const rows = s.rows.filter((r) => r.id === p.id);
+      if (!rows.length) fail("notFound");
+      const { secret, ...o } = demoGroup(rows)[0];
+      if (o.status === "cancel") return { order: o, result: "cancel" };
+      if (o.status === "done") return { order: o, result: "already" };
+      const at = Date.now();
+      rows.forEach((r) => Object.assign(r, { status: "done", by: "staff@example.com", at }));
+      demoSave(s);
+      return { order: { ...o, status: "done", pickedBy: "staff@example.com", pickedAt: at }, result: "ok" };
     }
     case "order": {
       let type = "general", email = "", free = 0, byStaff = false;

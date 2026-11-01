@@ -1,5 +1,5 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
-import { call, DEMO, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -7,7 +7,7 @@ $("shop").textContent = SHOP_NAME;
 if (DEMO) $("demo").hidden = false;
 if (SHEET_URL) { $("sheetLink").href = SHEET_URL; $("sheetLink").hidden = false; }
 
-let token = savedToken();
+let key = savedStaffKey();
 let st = null, orders = [], tab = "kitchen";
 let counter = { type: "student", cart: {} };
 let timer = null;
@@ -22,42 +22,55 @@ const toast = (msg) => {
 const byCode = (code) => st?.menu.find((m) => m.code === code);
 
 // ---------- ログイン ----------
+// Googleで一度ログインすると合言葉（staffKey）をもらい、このスマホに3日間残る
 async function enter() {
   try {
-    const me = await call("me", { idToken: token });
-    if (!me.isStaff) throw new Error("notStaff");
+    const me = await call("staffMe", { staffKey: key });
     $("gate").hidden = true;
     $("main").hidden = false;
     $("who").hidden = false;
     $("who").innerHTML = `<span>${esc(me.email)}</span><button type="button" id="out">ログアウト</button>`;
-    $("out").onclick = () => { saveToken(null); location.reload(); };
+    $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     await refresh();
     timer = setInterval(refresh, 3000);
-  } catch (e) {
-    saveToken(null);
-    token = null;
-    $("gateErr").textContent = e.message === "notStaff" ? "このアカウントはスタッフに登録されていません（スプレッドシートの「設定」→スタッフ）" : "ログインできませんでした";
-    $("gateErr").hidden = false;
+  } catch {
+    saveStaffKey(null);
+    key = null;
     showLogin();
   }
 }
-function showLogin() {
-  renderGoogleButton($("gbtn"), { student: false, onToken: (t) => { token = t; saveToken(t); enter(); } });
+function showLogin(msg) {
+  $("gateErr").hidden = !msg;
+  if (msg) $("gateErr").textContent = msg;
+  renderGoogleButton($("gbtn"), {
+    student: false,
+    onToken: async (t) => {
+      try {
+        const me = await call("me", { idToken: t });
+        if (!me.isStaff) return showLogin("このアカウントはスタッフに登録されていません（スプレッドシートの「設定」→スタッフ）");
+        key = me.staffKey;
+        saveStaffKey(key);
+        enter();
+      } catch {
+        showLogin("ログインできませんでした");
+      }
+    },
+  });
 }
-if (token) enter(); else showLogin();
+if (key) enter(); else showLogin();
 
 async function refresh() {
   try {
-    const r = await call("staffList", { idToken: token });
+    const r = await call("staffList", { staffKey: key });
     st = r.state;
     orders = r.orders.sort((a, b) => a.no - b.no);
     render();
   } catch (e) {
-    if (e.message === "notStaff") { clearInterval(timer); saveToken(null); location.reload(); }
+    if (e.message === "notStaff") { clearInterval(timer); saveStaffKey(null); location.reload(); }
   }
 }
 async function act(payload, msg) {
-  try { await call(payload.action, { ...payload, idToken: token }); if (msg) toast(msg); }
+  try { await call(payload.action, { ...payload, staffKey: key }); if (msg) toast(msg); }
   catch { toast("うまくいきませんでした"); }
   refresh();
 }
@@ -104,7 +117,7 @@ $("cGo").onclick = async () => {
   $("cGo").disabled = true;
   try {
     const r = await call("order", {
-      asStaff: true, idToken: token, type: counter.type,
+      asStaff: true, staffKey: key, type: counter.type,
       items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
     });
     $("cResult").innerHTML = `番号 <b class="big-no" style="font-size:32px">${pad(r.no)}</b>${r.total ? `　${yen(r.total)} 受け取る` : ""}`;

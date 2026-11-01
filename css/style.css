@@ -259,3 +259,59 @@ h2 { font-family: var(--f-display); font-weight: 400; font-size: 18px; margin: 0
 .codebtn:disabled { opacity: .4; }
 .row .cup { width: 32px; height: 32px; flex: none; }
 .who span { max-width: 28vw; }
+
+/* ===== 枠を減らす（お客さん画面） ===== */
+.price-note { font-size: 13px; color: var(--muted); }
+.menu-book { gap: 28px; }
+.dish { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.dish-head { background: transparent; padding: 0 0 4px; border-bottom: 2px solid var(--ink); }
+.dish-head .cup { width: 36px; height: 36px; }
+.item-row { padding: 10px 2px; }
+.item-row.on { background: transparent; }
+.item-row.on .vname { color: var(--dawn); font-weight: 700; }
+.item-row .code { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.opt-card, .pay-sum { border: 0; background: transparent; padding: 8px 0; }
+.choose { gap: 16px; }
+.lines li { background: transparent; border-bottom: 1px solid var(--line); border-radius: 0; padding: 6px 0; }
+
+/* ===== 店員さんに見せる画面 ===== */
+.tickets { gap: 24px; }
+.show { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 20px 0 24px; border-bottom: 1px solid var(--line); }
+.show-hint { margin: 0; font-weight: 700; font-size: 15px; color: var(--dawn); }
+.show-no { font-family: var(--f-num); font-size: 64px; line-height: 1; }
+.show-no small { display: block; font-family: var(--f-body); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.big-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 420px; }
+.big-items li { display: flex; align-items: center; gap: 14px; text-align: left; }
+.big-items .cup { width: 84px; height: 84px; flex: none; }
+.big-items div { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.big-items b { font-family: var(--f-display); font-weight: 400; font-size: 26px; }
+.big-items span { font-size: 18px; font-weight: 700; color: var(--muted); }
+.big-items em { font-style: normal; font-family: var(--f-num); font-size: 34px; }
+.qr { width: 180px; height: 180px; background: #fff; padding: 6px; border-radius: 8px; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.needs { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.need-big { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 16px; }
+.need-big svg { width: 24px; height: 24px; }
+.need-big .line { stroke: currentColor; }
+.need-big.id { color: var(--ok); }
+.need-big.cash { color: var(--dawn); }
+.dots { display: flex; gap: 22px; }
+.dots span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+.dots i { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; opacity: .35; }
+.dots svg { width: 22px; height: 22px; }
+.dots .done i { opacity: .7; }
+.dots .now { color: var(--ink); font-weight: 700; }
+.dots .now i { opacity: 1; background: var(--dawn-soft); animation: pulse 1.4s ease-in-out infinite; }
+.show.ready { background: var(--dawn-soft); animation: flash 1.2s ease-in-out infinite; border-radius: 16px; }
+.show.ready .show-hint { font-size: 18px; }
+.past { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* ===== 受け渡し（QR読み取り後） ===== */
+.pk { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding-top: 24px; }
+.pk-mark { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; }
+.pk-mark svg { width: 56px; height: 56px; }
+.pk-mark .line { stroke: #fff; stroke-width: 3; }
+.pk.ok .pk-mark { background: var(--ok); }
+.pk.already .pk-mark, .pk.cancel .pk-mark { background: var(--danger); }
+.pk h2 { font-size: 24px; }
+.pk .muted { font-size: 13px; }
