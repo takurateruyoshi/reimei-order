@@ -1,5 +1,5 @@
 // お客さんのQRを読み取ったスタッフのスマホで開くページ。開いた時点で受け渡しを記録する。
-import { call, cachedState, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { call, cachedState, popRedirectToken, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { scanOrderQR } from "./scan.js";
 import { esc, pad, yen, cupSVG, ID_ICON, COIN_ICON } from "./ui.js";
 
@@ -70,22 +70,21 @@ function login(msg) {
   $("gate").hidden = false;
   $("gateErr").hidden = !msg;
   if (msg) $("gateErr").textContent = msg;
-  renderGoogleButton($("gbtn"), {
-    student: false,
-    onToken: async (t) => {
-      try {
-        const me = await call("me", { idToken: t });
-        if (!me.isStaff) return login("このアカウントはスタッフに登録されていません");
-        key = me.staffKey;
-        saveStaffKey(key);
-        $("gate").hidden = true;
-        $("loading").hidden = false;
-        run();
-      } catch {
-        login("ログインできませんでした");
-      }
-    },
-  });
+  renderGoogleButton($("gbtn"), { student: false, onToken: loginWith });
+}
+async function loginWith(t) {
+  $("gate").hidden = true;
+  $("loading").hidden = false;
+  try {
+    const me = await call("me", { idToken: t });
+    if (!me.isStaff) return login("このアカウントはスタッフに登録されていません");
+    key = me.staffKey;
+    saveStaffKey(key);
+    run();
+  } catch {
+    login("ログインできませんでした");
+  }
 }
 
-if (key) run(); else login();
+const back = popRedirectToken();
+if (back) loginWith(back); else if (key) run(); else login();

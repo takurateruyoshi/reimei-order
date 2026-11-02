@@ -1,5 +1,5 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
-import { call, watchRev, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { call, watchRev, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { scanOrderQR } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON } from "./ui.js";
 
@@ -78,22 +78,20 @@ function showLogin(msg) {
   $("gate").hidden = false;
   $("gateErr").hidden = !msg;
   if (msg) $("gateErr").textContent = msg;
-  renderGoogleButton($("gbtn"), {
-    student: false,
-    onToken: async (t) => {
-      showLoading();
-      try {
-        const me = await call("me", { idToken: t });
-        if (!me.isStaff) return showLogin("このアカウントはスタッフに登録されていません（スプレッドシートの「スタッフ」シート）");
-        key = me.staffKey;
-        saveStaffKey(key);
-        try { localStorage.setItem(EMAIL_KEY, me.email); } catch {}
-        enter();
-      } catch {
-        showLogin("ログインできませんでした");
-      }
-    },
-  });
+  renderGoogleButton($("gbtn"), { student: false, onToken: loginWith });
+}
+async function loginWith(t) {
+  showLoading();
+  try {
+    const me = await call("me", { idToken: t });
+    if (!me.isStaff) return showLogin("このアカウントはスタッフに登録されていません（スプレッドシートの「スタッフ」シート）");
+    key = me.staffKey;
+    saveStaffKey(key);
+    try { localStorage.setItem(EMAIL_KEY, me.email); } catch {}
+    enter();
+  } catch {
+    showLogin("ログインできませんでした");
+  }
 }
 
 function apply(r) {
@@ -304,4 +302,6 @@ function render() {
   ].map(([k, v]) => `<div class="tile"><small>${k}</small><b>${v}</b></div>`).join("");
 }
 
-if (key) enter(); else showLogin();
+// Googleから戻ってきたときは、そのまま読み込み画面へ
+const back = popRedirectToken();
+if (back) loginWith(back); else if (key) enter(); else showLogin();

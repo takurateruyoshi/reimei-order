@@ -91,29 +91,52 @@ function loadGis() {
 }
 
 // el の中にGoogleのログインボタンを出す。ログインできたら onToken(idToken)
-// ログインボタンをすぐ出せるよう、Googleの部品はページを開いた時点で読み込んでおく
-if (!DEMO && GOOGLE_CLIENT_ID) setTimeout(() => loadGis().catch(() => {}), 0);
+// Googleログインは、別ウィンドウではなく同じ画面でGoogleのページへ移り、選んだら戻ってくる方式。
+// （スマホやLINEの中のブラウザでは、別ウィンドウ方式だとアカウントを選んだあと白い画面で止まることがあるため）
+const NONCE_KEY = "reimei-order-nonce";
+const backURL = () => location.origin + location.pathname.replace(/index\.html$/, "");
+let pendingToken = null;
+(function takeRedirectToken() {
+  if (!location.hash.includes("id_token=")) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  const t = h.get("id_token");
+  history.replaceState(null, "", location.pathname + location.search);
+  let nonce = null;
+  try { nonce = sessionStorage.getItem(NONCE_KEY); sessionStorage.removeItem(NONCE_KEY); } catch {}
+  try {
+    const p = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (nonce && p.nonce === nonce) pendingToken = t;
+  } catch {}
+})();
+// Googleから戻ってきたときのトークン（1回だけ取り出せる）
+export function popRedirectToken() { const t = pendingToken; pendingToken = null; return t; }
 
-export async function renderGoogleButton(el, { student, onToken }) {
-  el.innerHTML = "";
-  if (DEMO) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "gbtn";
-    b.textContent = student ? "（デモ）大学のGoogleでログイン" : "（デモ）Googleでログイン";
-    b.onclick = () => onToken(student ? `demo:s${Date.now() % 100000}@${STUDENT_DOMAIN}` : "demo:staff@example.com");
-    el.append(b);
-    return;
-  }
-  await loadGis();
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: (r) => onToken(r.credential),
-    ...(student ? { hd: STUDENT_DOMAIN } : {}),
-    auto_select: false,
-    ux_mode: "popup",
+function goGoogle(student) {
+  const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, "0")).join("");
+  try { sessionStorage.setItem(NONCE_KEY, nonce); } catch {}
+  const q = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID, redirect_uri: backURL(), response_type: "id_token",
+    scope: "openid email", nonce, prompt: "select_account",
   });
-  google.accounts.id.renderButton(el, { theme: "outline", size: "large", shape: "pill", text: "signin_with", locale: "ja" });
+  if (student) q.set("hd", STUDENT_DOMAIN);
+  location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + q;
+}
+
+// el の中に「Googleでログイン」ボタンを出す。ログインできたら onToken(idToken)。
+// beforeLeave は Googleのページへ移る直前に呼ぶ（カートなどを覚えておくため）
+export async function renderGoogleButton(el, { student, onToken, beforeLeave }) {
+  el.innerHTML = "";
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "gbtn google";
+  b.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9h-4v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.7V6.6h-4a12 12 0 0 0 0 10.8l4-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.3.6 4.5 1.8l3.4-3.4A12 12 0 0 0 1.4 6.6l4 3.1C6.3 6.9 8.9 4.8 12 4.8z"/></svg><span>${
+    DEMO ? "（デモ）" : ""}${student ? "大学のGoogleでログイン" : "Googleでログイン"}</span>`;
+  b.onclick = () => {
+    if (DEMO) return onToken(student ? `demo:s${Date.now() % 100000}@${STUDENT_DOMAIN}` : "demo:staff@example.com");
+    beforeLeave?.();
+    goGoogle(student);
+  };
+  el.append(b);
 }
 
 // ---------- デモサーバー ----------

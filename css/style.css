@@ -382,3 +382,4 @@ html { touch-action: manipulation; }
 .give { border: 2px solid var(--ok); background: transparent; color: var(--ok); border-radius: 10px; padding: 10px 12px; font-weight: 700; min-width: 76px; }
 .give.armed { background: var(--danger); border-color: var(--danger); color: #fff; animation: pulse 1s ease-in-out infinite; }
 [data-panel="counter"].panel { background: transparent; border: 0; padding: 0; }
+.gbtn.google { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #1f1f1f; border: 1px solid #747775; border-radius: 999px; padding: 10px 16px; font-size: 14px; font-weight: 500; }

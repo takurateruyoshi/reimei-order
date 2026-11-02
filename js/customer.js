@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, watchRev, cachedState, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, watchRev, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
@@ -309,6 +309,8 @@ function renderSheet() {
   $("byCard").onclick = scanCard;
   if (!$("gbtn").childElementCount) renderGoogleButton($("gbtn"), {
     student: true,
+    // Googleのページへ移る前に、カートと受け取り時間を覚えておく
+    beforeLeave: () => { try { sessionStorage.setItem(LOGIN_KEEP, JSON.stringify({ cart, slot })); } catch {} },
     onToken: async (t) => {
       token = t;
       saveToken(t);
@@ -369,12 +371,28 @@ function renderTickets() {
   lastReady = readyIds;
 }
 
+// Googleから戻ってきたら、カートと受け取り時間を戻して、注文の確認画面を開き直す
+const LOGIN_KEEP = "reimei-order-before-login";
+const backToken = popRedirectToken();
+if (backToken) {
+  token = backToken;
+  saveToken(backToken);
+  try { const k = JSON.parse(sessionStorage.getItem(LOGIN_KEEP)) || {}; cart = k.cart || {}; slot = k.slot || null; } catch {}
+  try { sessionStorage.removeItem(LOGIN_KEEP); } catch {}
+}
+
 // 前回のメニューがあれば先に出しておく（数秒後に最新に入れかわる）
 // 初めてなら見本のメニューを出し、確認が終わるまで注文は押せないようにしておく
 st = cachedState() || { ...SNAPSHOT, snapshot: true };
 $("loading").hidden = true;
 render();
 await Promise.all([loadState(), loadMe(), pollTickets()]);
+if (backToken) {
+  if (!me?.isStudent) { token = null; me = null; saveToken(null); }
+  if (cartQty()) { $("sheet").hidden = false; renderSheet(); }
+  if (!me) { $("sheetErr").textContent = ERR.notStudent; $("sheetErr").hidden = false; }
+  render();
+}
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();
 // 変更があったときだけ読み直す（念のため30秒ごとにも確認）
