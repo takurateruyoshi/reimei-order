@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, watchRev, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, watchRev, cachedState, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
@@ -363,6 +363,9 @@ function renderTickets() {
   lastReady = readyIds;
 }
 
+// 前回のメニューがあれば先に出しておく（数秒後に最新に入れかわる）
+st = cachedState();
+if (st) { $("loading").hidden = true; render(); }
 await Promise.all([loadState(), loadMe(), pollTickets()]);
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();

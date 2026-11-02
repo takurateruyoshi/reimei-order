@@ -1,5 +1,5 @@
 // お客さんのQRを読み取ったスタッフのスマホで開くページ。開いた時点で受け渡しを記録する。
-import { call, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { call, cachedState, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { esc, pad, yen, cupSVG, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -45,7 +45,8 @@ function show(r) {
 async function run() {
   if (!id) { $("loading").textContent = "QRコードが正しくありません"; return; }
   try {
-    try { (await call("state")).menu.forEach((m) => (colors[m.code] = m.color)); } catch {}
+    // 色は前回のメニューから。受け渡しの記録はすぐに送る
+    (cachedState()?.menu || []).forEach((m) => (colors[m.code] = m.color));
     show(await call("pickup", { staffKey: key, id }));
   } catch (e) {
     if (e.message === "notStaff") { saveStaffKey(null); key = null; login(); return; }

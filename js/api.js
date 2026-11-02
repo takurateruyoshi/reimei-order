@@ -26,8 +26,14 @@ export async function call(action, payload = {}) {
     throw netError();
   }
   if (d.error) throw new Error(d.error);
+  if (action === "state") saveState(d);
   return d;
 }
+
+// 最後に読んだメニューなどを覚えておき、次に開いたときはまずそれを出す（そのあとすぐ最新に入れかえる）
+const STATE_KEY = "reimei-order-state";
+function saveState(d) { try { localStorage.setItem(STATE_KEY, JSON.stringify(d)); } catch {} }
+export function cachedState() { try { return JSON.parse(localStorage.getItem(STATE_KEY)); } catch { return null; } }
 // 2秒ごとに「更新番号」だけ確かめ、変わったときに onChange を呼ぶ（画面が隠れている間は止める）
 export function watchRev(onChange, ms = 2000) {
   let last = null, busy = false;
@@ -85,6 +91,9 @@ function loadGis() {
 }
 
 // el の中にGoogleのログインボタンを出す。ログインできたら onToken(idToken)
+// ログインボタンをすぐ出せるよう、Googleの部品はページを開いた時点で読み込んでおく
+if (!DEMO && GOOGLE_CLIENT_ID) setTimeout(() => loadGis().catch(() => {}), 0);
+
 export async function renderGoogleButton(el, { student, onToken }) {
   el.innerHTML = "";
   if (DEMO) {
