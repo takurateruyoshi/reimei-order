@@ -12,6 +12,9 @@ const ERR = {
   soldOut: "売り切れのドリンクがあります。選び直してください",
   tooMany: "1回に頼める杯数をこえています",
   badSlot: "その受け取り時間はもう選べません。選び直してください",
+  slotFull: "その受け取り時間はいっぱいになりました。ほかの時間を選んでください",
+  dayFull: "本日のモバイルオーダーは売り切れました",
+  studentOnly: "モバイルオーダーは学生専用です。店頭の列にお並びください",
   auth: "もう一度ログインしてください",
 };
 const errMsg = (e) => ERR[e?.message] || "うまくいきませんでした。もう一度試してください";
@@ -127,7 +130,14 @@ $("tickets").addEventListener("click", async (e) => {
 // 受け取り時間：今より後の枠だけ選べる
 let slot = null;
 const nowHHMM = () => new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" });
-const openSlots = () => (st?.slots || []).filter((s) => s >= nowHHMM());
+// 締め切り（受け取り時間の◯分前）を過ぎた枠と、いっぱいの枠は選べない
+const cutoffHHMM = () => {
+  const [h, m] = nowHHMM().split(":").map(Number);
+  const t = h * 60 + m + (st?.cutoff ?? 10);
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+};
+const slotLeft = (t) => st?.slotLeft?.[t] ?? 99;
+const openSlots = () => (st?.slots || []).filter((t) => t >= cutoffHHMM() && slotLeft(t) >= Math.max(1, cartQty()));
 $("slots").addEventListener("click", (e) => {
   const b = e.target.closest("[data-slot]");
   if (b) { slot = b.dataset.slot; $("sheetErr").hidden = true; renderSheet(); }
@@ -208,7 +218,8 @@ $("cancelSend").onclick = () => {
 // ---------- 表示 ----------
 function render() {
   if (!st) return;
-  $("closed").hidden = st.open;
+  $("closed").hidden = st.open && st.dayLeft !== 0;
+  $("closedText").textContent = st.dayLeft === 0 && st.open ? "本日のモバイルオーダーは売り切れました" : "ただいま受付を停止しています";
   $("who").hidden = !me;
   if (me) {
     $("who").innerHTML = `<span>学部生 ${esc(me.studentId || "")}</span><button type="button" id="out">ログアウト</button>`;
@@ -255,7 +266,7 @@ function renderSheet() {
   const avail = openSlots();
   if (slot && !avail.includes(slot)) slot = null;
   $("slots").innerHTML = avail.length
-    ? avail.map((t) => `<button type="button" class="slot" data-slot="${t}" aria-pressed="${slot === t}">${t}</button>`).join("")
+    ? avail.map((t) => `<button type="button" class="slot" data-slot="${t}" aria-pressed="${slot === t}">${t}<small>のこり${slotLeft(t)}</small></button>`).join("")
     : `<p class="err">今日の受け取り時間は終わりました</p>`;
   const general = q * st.price;
   if (me?.isStudent) {
@@ -278,14 +289,14 @@ function renderSheet() {
         <div id="gbtn"></div>
         <button class="gbtn card" type="button" id="byCard">${ID_ICON}学生証を読み取る</button>
       </div>
-      <div class="opt-card">
+      ${st.allowGeneral ? `<div class="opt-card">
         <div class="tagp paid">${COIN_ICON}一般</div>
         <div class="big">${yen(general)}</div>
         <button class="go" type="button" id="asGuest">注文する</button>
         <small>受け取りのとき現金で</small>
-      </div>
+      </div>` : `<div class="opt-card"><div class="tagp paid">${COIN_ICON}一般の方</div><small>モバイルオーダーは学生専用です。店頭の列にお並びください</small></div>`}
     </div>`;
-  $("asGuest").onclick = () => placeOrder(false);
+  $("asGuest")?.addEventListener("click", () => placeOrder(false));
   $("byCard").onclick = scanCard;
   renderGoogleButton($("gbtn"), {
     student: true,

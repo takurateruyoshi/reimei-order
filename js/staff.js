@@ -203,6 +203,7 @@ function render() {
     ["学部生（人）", people],
     ["無料（杯）", valid.reduce((a, o) => a + o.free, 0)],
     ["合計（杯）", cups(valid)],
+    ["モバイル残り（今日）", `${st.dayLeft ?? "-"} / ${st.dayCap ?? "-"}`],
     ["現金 受け取り済み", yen(valid.filter((o) => o.status === "done").reduce((a, o) => a + o.total, 0))],
   ].map(([k, v]) => `<div class="tile"><small>${k}</small><b>${v}</b></div>`).join("");
 }

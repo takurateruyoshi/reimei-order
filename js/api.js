@@ -144,7 +144,13 @@ async function demoCall(action, p) {
   const c = s.config;
   const slots = [];
   for (let t = 10 * 60 + 15; t <= 17 * 60; t += 15) slots.push(`${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`);
-  const pub = () => ({ ...c, slots, menu: demoMenu(s) });
+  const cups = (f) => s.rows.filter((r) => r.day === c.day && r.status !== "cancel" && f(r)).reduce((a, r) => a + r.qty, 0);
+  const cap = { dayCap: c.day === 1 ? 600 : 400, slotCap: c.day === 1 ? 40 : 30, cutoff: 10, allowGeneral: !!c.allowGeneral };
+  const pub = () => ({
+    ...c, ...cap, slots, menu: demoMenu(s),
+    dayLeft: Math.max(0, cap.dayCap - cups(() => true)),
+    slotLeft: Object.fromEntries(slots.map((t) => [t, Math.max(0, cap.slotCap - cups((r) => r.slot === t))])),
+  });
   const staff = () => { if (p.staffKey !== "demo-key" && !demoUser(p.idToken)?.isStaff) fail("notStaff"); };
   const sidOfEmail = (e) => String(e || "").split("@")[0].replace(/^s/i, "");
   const freeLeft = (sid) => Math.max(0, c.freeLimit - s.rows
@@ -202,6 +208,9 @@ async function demoCall(action, p) {
       if (!totalQty) fail("empty");
       if (!byStaff && totalQty > c.maxQty) fail("tooMany");
       if (!byStaff && !slots.includes(p.slot)) fail("badSlot");
+      if (!byStaff && type !== "student" && !cap.allowGeneral) fail("studentOnly");
+      if (!byStaff && cups(() => true) + totalQty > cap.dayCap) fail("dayFull");
+      if (!byStaff && cups((r) => r.slot === p.slot) + totalQty > cap.slotCap) fail("slotFull");
       for (const i of items) {
         const m = menu[i.code];
         if (!m || m.soldOut || (m.remaining !== null && m.remaining < i.qty)) fail("soldOut");
