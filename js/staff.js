@@ -1,5 +1,5 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
-import { call, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { call, watchRev, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -32,7 +32,8 @@ async function enter() {
     $("who").innerHTML = `<span>${esc(me.email)}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     await refresh();
-    timer = setInterval(refresh, 3000);
+    watchRev(refresh);
+    timer = setInterval(refresh, 10000);
   } catch {
     saveStaffKey(null);
     key = null;
@@ -153,7 +154,7 @@ function ageBar(o) {
 const need = (o) => (o.free ? `<span class="need id">${ID_ICON}学生証</span>` : "") + (o.total ? `<span class="need cash">${COIN_ICON}${yen(o.total)}</span>` : "");
 
 function card(o, btn) {
-  return `<article class="ocard">
+  return `<article class="ocard ${o.problem ? "bad" : ""}">${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
     <div class="no">${o.studentId ? `<span class="call">${esc(o.studentId)}</span><small>No.${pad(o.no)}</small>` : pad(o.no)}</div>
     <ul class="olines">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
     ${btn}

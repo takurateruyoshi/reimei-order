@@ -28,6 +28,22 @@ export async function call(action, payload = {}) {
   if (d.error) throw new Error(d.error);
   return d;
 }
+// 2秒ごとに「更新番号」だけ確かめ、変わったときに onChange を呼ぶ（画面が隠れている間は止める）
+export function watchRev(onChange, ms = 2000) {
+  let last = null, busy = false;
+  const tick = async () => {
+    if (busy || document.hidden) return;
+    busy = true;
+    try {
+      const { rev } = await call("rev");
+      if (last !== null && rev !== last) await onChange();
+      last = rev;
+    } catch {} finally { busy = false; }
+  };
+  tick();
+  setInterval(tick, ms);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { last = null; onChange(); tick(); } });
+}
 export const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join("") + Date.now().toString(36).slice(-4);
 
 // ---------- Googleログイン ----------
@@ -108,7 +124,7 @@ function demoLoad() {
     menu: DEMO_MENU, rows: [],
   };
 }
-function demoSave(s) { try { localStorage.setItem(K, JSON.stringify(s)); } catch {} }
+function demoSave(s) { s.rev = (s.rev || 0) + 1; try { localStorage.setItem(K, JSON.stringify(s)); } catch {} }
 export function resetDemo() { localStorage.removeItem(K); localStorage.removeItem(STAFF_KEY); sessionStorage.clear(); location.reload(); }
 
 function demoUser(token) {
@@ -158,6 +174,7 @@ async function demoCall(action, p) {
     .reduce((a, r) => a + r.free, 0));
 
   switch (action) {
+    case "rev": return { rev: String(s.rev || 0) };
     case "state": return pub();
     case "me": {
       const u = demoUser(p.idToken);

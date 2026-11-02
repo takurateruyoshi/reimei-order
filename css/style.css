@@ -355,3 +355,5 @@ h2 { font-family: var(--f-display); font-weight: 400; font-size: 18px; margin: 0
 .slot[aria-pressed="true"] small { color: #fff; }
 .ocard .no .call { display: block; font-size: 24px; letter-spacing: .02em; }
 .ocard .no small { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); }
+.ocard.bad { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+.bad-why { grid-column: 1 / -1; color: var(--danger); font-weight: 700; font-size: 13px; }

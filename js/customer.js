@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, watchRev, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
@@ -100,23 +100,27 @@ async function pollTickets() {
 
 // ---------- 操作 ----------
 $("menu").addEventListener("click", (e) => {
-  const minus = e.target.closest("[data-minus]");
+  // 行をタップするとカートに1杯入る（減らすのは注文の確認画面で）
   const row = e.target.closest("[data-code]");
   if (!row || row.disabled) return;
   const code = row.dataset.code;
   const m = byCode(code);
-  if (minus) {
-    cart[code] = Math.max(0, (cart[code] || 0) - 1);
-  } else {
-    if (cartQty() >= st.maxQty) return toast(`1回の注文は${st.maxQty}杯までです`);
-    if (m.remaining !== null && (cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
-    cart[code] = (cart[code] || 0) + 1;
-  }
+  if (cartQty() >= st.maxQty) return toast(`1回の注文は${st.maxQty}杯までです`);
+  if (m.remaining !== null && (cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
+  cart[code] = (cart[code] || 0) + 1;
   render();
 });
 
 $("toCheckout").onclick = () => { $("sheetErr").hidden = true; $("sheet").hidden = false; renderSheet(); };
 $("closeSheet").onclick = () => ($("sheet").hidden = true);
+$("lines").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dec]");
+  if (!b) return;
+  cart[b.dataset.dec] = Math.max(0, (cart[b.dataset.dec] || 0) - 1);
+  if (!cart[b.dataset.dec]) delete cart[b.dataset.dec];
+  render();
+  if (!cartQty()) $("sheet").hidden = true;
+});
 $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) $("sheet").hidden = true; });
 
 $("tickets").addEventListener("click", async (e) => {
@@ -237,8 +241,7 @@ function render() {
           <span class="code">${esc(m.code)}</span>
           ${m.variant ? cupSVG(m, "sm") : ""}
           <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
-          ${n ? `<span class="minus" data-minus aria-label="1つ減らす">−</span><span class="qty">${n}</span>` : ""}
-          <span class="plus" aria-hidden="true">＋</span>
+          ${n ? `<span class="qty">×${n}</span>` : ""}
         </button>`;
       }).join("")}</div>
     </article>`).join("");
@@ -262,7 +265,7 @@ function renderSheet() {
   const lines = cartLines();
   const q = cartQty();
   if (!q) { $("sheet").hidden = true; return; }
-  $("lines").innerHTML = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b></li>`).join("");
+  $("lines").innerHTML = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   const avail = openSlots();
   if (slot && !avail.includes(slot)) slot = null;
   $("slots").innerHTML = avail.length
@@ -362,5 +365,6 @@ function renderTickets() {
 await Promise.all([loadState(), loadMe(), pollTickets()]);
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();
-setInterval(pollTickets, 5000);
-setInterval(loadState, 5000);
+// 変更があったときだけ読み直す（念のため30秒ごとにも確認）
+watchRev(() => Promise.all([loadState(), pollTickets()]));
+setInterval(() => { loadState(); pollTickets(); }, 30000);
