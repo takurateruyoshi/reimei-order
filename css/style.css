@@ -371,3 +371,13 @@ html { touch-action: manipulation; }
 /* カートに入っている行の「−」：押しやすいよう大きめに */
 .item-row .dec { flex: none; width: 48px; height: 48px; margin: -8px 0 -8px -8px; display: grid; place-items: center; border-radius: 50%; background: var(--dawn-soft); color: var(--dawn); font-size: 28px; font-weight: 700; line-height: 1; }
 .item-row .dec:active { background: var(--dawn); color: #fff; }
+
+/* ===== スタッフ：タブは下線で、ボタンを減らす ===== */
+.tabs { gap: 0; border-bottom: 2px solid var(--line); overflow-x: auto; }
+.tabs button { border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 0; background: transparent; padding: 10px 16px; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: transparent; color: var(--ink); border-bottom-color: var(--dawn); }
+.handoff-head { display: flex; align-items: flex-start; gap: 12px; }
+.handoff-head .muted { margin: 0; flex: 1; font-size: 13px; }
+.link-btn { border: 0; background: none; color: var(--sky); font-weight: 700; text-decoration: underline; padding: 4px 0; white-space: nowrap; }
+.give { border: 2px solid var(--ok); background: transparent; color: var(--ok); border-radius: 10px; padding: 10px 12px; font-weight: 700; min-width: 76px; }
+.give.armed { background: var(--danger); border-color: var(--danger); color: #fff; animation: pulse 1s ease-in-out infinite; }

@@ -122,6 +122,33 @@ async function act(payload, msg) {
 }
 
 // ---------- 操作 ----------
+// 「渡した」は押し間違い防止で2回押す（1回目で赤くなり、3秒以内にもう一度押すと完了）
+let armed = null, armTimer = null;
+$("colNew").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-give]");
+  if (!b) return;
+  const id = b.dataset.give;
+  if (armed !== id) {
+    armed = id;
+    clearTimeout(armTimer);
+    armTimer = setTimeout(() => { armed = null; render(); }, 3000);
+    return render();
+  }
+  armed = null;
+  clearTimeout(armTimer);
+  const o = orders.find((x) => x.id === id);
+  if (o) o.status = "done";   // 先に一覧から消しておく
+  render();
+  try {
+    const r = await call("pickup", { staffKey: key, id });
+    toast(r.result === "already" ? "もう受け渡し済みでした" : `${o?.studentId || "No." + pad(o?.no)} 受け渡し完了`);
+  } catch {
+    if (o) o.status = "new";
+    toast("記録できませんでした。もう一度押してください");
+  }
+  lastSnap = "";
+  refresh();
+});
 // アプリの中でカメラを開いてお客さんのQRを読み、受け渡しの画面へ
 $("scanQR").onclick = async () => {
   const r = await scanOrderQR();
@@ -224,7 +251,7 @@ function render() {
   if (!ordersLoaded) {
     $("colNew").html = `<div class="ocard sk-card"></div>`.repeat(3);
   } else $("colNew").html = keys.length
-    ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3>${bySlot[k].map((o) => card(o, "")).join("")}`).join("")
+    ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3>${bySlot[k].map((o) => card(o, `<button type="button" class="give ${armed === o.id ? "armed" : ""}" data-give="${esc(o.id)}">${armed === o.id ? "もう一度で完了" : "渡した"}</button>`)).join("")}`).join("")
     : `<div class="empty">なし</div>`;
 
   // 店頭で注文

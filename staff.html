@@ -31,14 +31,16 @@
     <div class="net-off" id="netOff" hidden>通信できません。つながると自動で最新になります。その間の注文は、パソコンのスプレッドシート「注文」シートに直接書いてください</div>
     <div class="banner" id="state">読み込んでいます…</div>
     <nav class="tabs" role="tablist" id="tabs">
-      <button role="tab" data-tab="kitchen" aria-selected="true">注文 <span class="count" id="cKitchen">0</span></button>
+      <button role="tab" data-tab="kitchen" aria-selected="true">受け渡し <span class="count" id="cKitchen">0</span></button>
       <button role="tab" data-tab="counter" aria-selected="false">店頭で注文</button>
       <button role="tab" data-tab="admin" aria-selected="false">管理</button>
     </nav>
 
-    <button class="go wide scan-btn" type="button" id="scanQR">QRを読み取って渡す</button>
     <section data-panel="kitchen" class="col">
-      <p class="muted" style="margin:0">上から順に作ってください。渡すときにお客さんの画面のQRをスマホのカメラで読み取ると、ここから消えます</p>
+      <div class="handoff-head">
+        <p class="muted">上から順に作り、渡したら「渡した」を2回押すか、お客さんのQRを読み取ってください</p>
+        <button class="link-btn" type="button" id="scanQR">QRを読む</button>
+      </div>
       <div class="col" id="colNew"><div class="ocard sk-card"></div><div class="ocard sk-card"></div><div class="ocard sk-card"></div></div>
     </section>
 
