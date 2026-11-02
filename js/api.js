@@ -112,7 +112,7 @@ function demoMenu(s) {
 function demoGroup(rows) {
   const map = {};
   for (const r of rows) {
-    const o = (map[r.id] ??= { id: r.id, no: r.no, day: r.day, time: r.time, type: r.type, email: r.email, byStaff: r.byStaff, status: r.status, secret: r.secret, lines: [], total: 0, free: 0, pickedBy: r.by || "", pickedAt: r.at || 0 });
+    const o = (map[r.id] ??= { id: r.id, no: r.no, day: r.day, time: r.time, type: r.type, email: r.email, byStaff: r.byStaff, status: r.status, secret: r.secret, lines: [], total: 0, free: 0, pickedBy: r.by || "", pickedAt: r.at || 0, studentId: r.sid || "" });
     o.lines.push({ code: r.code, name: r.name, variant: r.variant, qty: r.qty });
     o.total += r.amount;
     o.free += r.free;
@@ -186,7 +186,7 @@ async function demoCall(action, p) {
         const f = Math.min(i.qty, free - used);
         used += f;
         total += (i.qty - f) * c.price;
-        s.rows.push({ no, day: c.day, time: Date.now(), type, email, code: m.code, name: m.name, variant: m.variant, qty: i.qty, free: f, amount: (i.qty - f) * c.price, status: "new", byStaff, id, secret });
+        s.rows.push({ no, day: c.day, time: Date.now(), type, email, code: m.code, name: m.name, variant: m.variant, qty: i.qty, free: f, amount: (i.qty - f) * c.price, status: "new", byStaff, id, secret, sid: email ? email.split("@")[0] : "" });
       }
       demoSave(s);
       return { id, secret, no, total, free: used };
