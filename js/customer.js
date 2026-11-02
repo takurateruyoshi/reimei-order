@@ -349,7 +349,7 @@ function renderTickets() {
       <ul class="big-items">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       <div class="needs">${need}</div>
-      ${o.studentId ? `<div class="sid"><small>学籍番号</small>${esc(o.studentId)}</div>` : ""}
+      ${o.studentId ? `<div class="sid"><small>学籍番号（この番号で呼びます）</small>${esc(o.studentId)}</div>` : ""}
       ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">注文を取り消す</button>` : ""}
     </article>`;
   }).join("") + past.map((o) => `<p class="past">${pad(o.no)}　受け取り済み</p>`).join("");

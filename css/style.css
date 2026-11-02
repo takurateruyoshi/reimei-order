@@ -353,3 +353,5 @@ h2 { font-family: var(--f-display); font-weight: 400; font-size: 18px; margin: 0
 .slot { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
 .slot small { font-family: var(--f-body); font-size: 10px; color: var(--muted); }
 .slot[aria-pressed="true"] small { color: #fff; }
+.ocard .no .call { display: block; font-size: 24px; letter-spacing: .02em; }
+.ocard .no small { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); }

@@ -154,10 +154,10 @@ const need = (o) => (o.free ? `<span class="need id">${ID_ICON}学生証</span>`
 
 function card(o, btn) {
   return `<article class="ocard">
-    <div class="no">${pad(o.no)}</div>
+    <div class="no">${o.studentId ? `<span class="call">${esc(o.studentId)}</span><small>No.${pad(o.no)}</small>` : pad(o.no)}</div>
     <ul class="olines">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
     ${btn}
-    <div class="sub">${need(o)}${o.studentId ? `<span class="mini">${esc(o.studentId)}</span>` : ""}${ageBar(o)}${o.byStaff ? `<span class="mini">店頭</span>` : ""}</div>
+    <div class="sub">${need(o)}${ageBar(o)}${o.byStaff ? `<span class="mini">店頭</span>` : ""}</div>
   </article>`;
 }
 const list = (arr, fn) => (arr.length ? arr.map(fn).join("") : `<div class="empty">なし</div>`);
