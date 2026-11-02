@@ -129,8 +129,9 @@ async function demoCall(action, p) {
   const c = s.config;
   const pub = () => ({ ...c, menu: demoMenu(s) });
   const staff = () => { if (p.staffKey !== "demo-key" && !demoUser(p.idToken)?.isStaff) fail("notStaff"); };
-  const freeLeft = (email) => Math.max(0, c.freeLimit - s.rows
-    .filter((r) => r.email === email && r.status !== "cancel" && (c.freeScope === "total" || r.day === c.day))
+  const sidOfEmail = (e) => String(e || "").split("@")[0].replace(/^s/i, "");
+  const freeLeft = (sid) => Math.max(0, c.freeLimit - s.rows
+    .filter((r) => sid && r.sid === sid && r.status !== "cancel" && (c.freeScope === "total" || r.day === c.day))
     .reduce((a, r) => a + r.free, 0));
 
   switch (action) {
@@ -138,8 +139,11 @@ async function demoCall(action, p) {
     case "me": {
       const u = demoUser(p.idToken);
       if (!u) fail("auth");
-      return { ...u, staffKey: u.isStaff ? "demo-key" : null, freeLeft: u.isStudent ? freeLeft(u.email) : 0 };
+      return { ...u, staffKey: u.isStaff ? "demo-key" : null, studentId: u.isStudent ? sidOfEmail(u.email) : "", freeLeft: u.isStudent ? freeLeft(sidOfEmail(u.email)) : 0 };
     }
+    case "sidInfo":
+      if (!/^\d{7}$/.test(p.studentId)) fail("badCard");
+      return { studentId: p.studentId, freeLeft: freeLeft(p.studentId) };
     case "staffMe":
       staff();
       return { email: "staff@example.com" };
@@ -156,7 +160,7 @@ async function demoCall(action, p) {
       return { order: { ...o, status: "done", pickedBy: "staff@example.com", pickedAt: at }, result: "ok" };
     }
     case "order": {
-      let type = "general", email = "", free = 0, byStaff = false;
+      let type = "general", email = "", free = 0, byStaff = false, cardSid = "";
       if (p.asStaff) {
         staff(); byStaff = true;
         if (p.type === "student") { type = "student"; free = c.freeLimit; }
@@ -165,7 +169,10 @@ async function demoCall(action, p) {
         if (p.idToken) {
           const u = demoUser(p.idToken);
           if (!u?.isStudent) fail("notStudent");
-          type = "student"; email = u.email; free = freeLeft(u.email);
+          type = "student"; email = u.email; free = freeLeft(sidOfEmail(u.email));
+        } else if (p.studentId) {
+          if (!/^\d{7}$/.test(p.studentId)) fail("badCard");
+          type = "student"; cardSid = p.studentId; free = freeLeft(cardSid);
         }
       }
       const menu = Object.fromEntries(demoMenu(s).map((m) => [m.code, m]));
@@ -186,7 +193,7 @@ async function demoCall(action, p) {
         const f = Math.min(i.qty, free - used);
         used += f;
         total += (i.qty - f) * c.price;
-        s.rows.push({ no, day: c.day, time: Date.now(), type, email, code: m.code, name: m.name, variant: m.variant, qty: i.qty, free: f, amount: (i.qty - f) * c.price, status: "new", byStaff, id, secret, sid: email ? email.split("@")[0] : "" });
+        s.rows.push({ no, day: c.day, time: Date.now(), type, email, code: m.code, name: m.name, variant: m.variant, qty: i.qty, free: f, amount: (i.qty - f) * c.price, status: "new", byStaff, id, secret, sid: cardSid || (email ? sidOfEmail(email) : "") });
       }
       demoSave(s);
       return { id, secret, no, total, free: used };

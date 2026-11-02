@@ -1,5 +1,6 @@
 import { SHOP_NAME } from "./config.js";
 import { call, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -53,10 +54,33 @@ async function loadState() {
     $("loading").textContent = "読み込めませんでした。電波を確認してください";
   }
 }
+// 学生証で登録した学籍番号（手で直す欄は作らない）
+const CARD_KEY = "reimei-order-card";
+let cardSid = null;
+try { cardSid = localStorage.getItem(CARD_KEY); } catch {}
+const saveCard = (v) => { cardSid = v; try { v ? localStorage.setItem(CARD_KEY, v) : localStorage.removeItem(CARD_KEY); } catch {} };
+
 async function loadMe() {
-  if (!token) { me = null; return; }
-  try { me = await call("me", { idToken: token }); }
-  catch { me = null; token = null; saveToken(null); }
+  if (token) {
+    try { me = await call("me", { idToken: token }); return; }
+    catch { token = null; saveToken(null); }
+  }
+  if (cardSid) {
+    try { me = { ...(await call("sidInfo", { studentId: cardSid })), isStudent: true, byCard: true }; return; }
+    catch { saveCard(null); }
+  }
+  me = null;
+}
+async function scanCard() {
+  const r = await scanStudentCard();
+  if (!r) return;
+  if (r.error) { $("sheetErr").textContent = r.error; $("sheetErr").hidden = false; return; }
+  token = null; saveToken(null);
+  saveCard(r.studentId);
+  await loadMe();
+  $("sheetErr").hidden = true;
+  toast(`学籍番号 ${r.studentId} で登録しました`);
+  render();
 }
 async function pollTickets() {
   if (!tickets.length) { orders = []; renderTickets(); return; }
@@ -105,7 +129,7 @@ async function placeOrder(asStudent) {
   try {
     const r = await call("order", {
       items: cartLines().map((l) => ({ code: l.code, qty: l.qty })),
-      ...(asStudent ? { idToken: token } : {}),
+      ...(asStudent ? (token ? { idToken: token } : { studentId: cardSid }) : {}),
     });
     tickets.unshift({ id: r.id, secret: r.secret });
     try { localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets)); } catch {}
@@ -128,8 +152,8 @@ function render() {
   $("closed").hidden = st.open;
   $("who").hidden = !me;
   if (me) {
-    $("who").innerHTML = `<span>学部生</span><button type="button" id="out">ログアウト</button>`;
-    $("out").onclick = () => { token = null; me = null; saveToken(null); render(); };
+    $("who").innerHTML = `<span>学部生 ${esc(me.studentId || "")}</span><button type="button" id="out">ログアウト</button>`;
+    $("out").onclick = () => { token = null; me = null; saveToken(null); saveCard(null); render(); };
   }
   const scope = st.freeScope === "total" ? "期間中" : "1日";
   $("priceNote").textContent = `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
@@ -175,7 +199,7 @@ function renderSheet() {
     const pay = (q - free) * st.price;
     const need = [free ? "学生証を見せて" : "", pay ? `${yen(pay)}を現金で払って` : ""].filter(Boolean).join("、");
     $("pick").innerHTML = `<div class="pay-sum">
-        <div class="tagp free">${ID_ICON}学部生（${esc(me.email)}）</div>
+        <div class="tagp free">${ID_ICON}学部生（${esc(me.byCard ? `学籍番号 ${me.studentId}` : me.email)}）</div>
         <div class="big">${[free ? `無料 ${free}杯` : "", pay ? yen(pay) : ""].filter(Boolean).join(" ＋ ")}</div>
         <small>受け取りのときに${need}ください</small>
       </div>
@@ -188,6 +212,7 @@ function renderSheet() {
         <div class="tagp free">${ID_ICON}学部生</div>
         <div class="big">${st.freeLimit ? `${Math.min(st.freeLimit, q)}杯無料` : yen(general)}</div>
         <div id="gbtn"></div>
+        <button class="gbtn card" type="button" id="byCard">${ID_ICON}学生証を読み取る</button>
       </div>
       <div class="opt-card">
         <div class="tagp paid">${COIN_ICON}一般</div>
@@ -197,6 +222,7 @@ function renderSheet() {
       </div>
     </div>`;
   $("asGuest").onclick = () => placeOrder(false);
+  $("byCard").onclick = scanCard;
   renderGoogleButton($("gbtn"), {
     student: true,
     onToken: async (t) => {

@@ -319,3 +319,16 @@ h2 { font-family: var(--f-display); font-weight: 400; font-size: 18px; margin: 0
 .sid small { display: block; font-family: var(--f-body); font-size: 12px; color: var(--muted); letter-spacing: 0; }
 .sid.check { font-size: 40px; color: var(--ok); }
 .sid.check small { color: var(--ok); font-weight: 700; font-size: 14px; }
+
+/* ===== 学生証の読み取り ===== */
+.gbtn.card { display: inline-flex; align-items: center; gap: 6px; }
+.gbtn.card svg { width: 20px; height: 20px; }
+.gbtn.card .line { stroke: currentColor; }
+.scan-bg { position: fixed; inset: 0; background: rgb(0 0 0 / .85); z-index: 20; display: flex; align-items: center; justify-content: center;
+  padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px)); }
+.scan { width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; gap: 14px; color: #fff; }
+.scan-title { margin: 0; font-weight: 700; text-align: center; }
+.scan-view { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #000; }
+.scan-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-frame { position: absolute; left: 12%; right: 12%; top: 34%; bottom: 34%; border: 3px solid var(--dawn); border-radius: 10px; box-shadow: 0 0 0 999px rgb(0 0 0 / .35); animation: pulse 1.4s ease-in-out infinite; }
+.scan .btn { color: #fff; border-color: #fff; }
