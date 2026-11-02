@@ -27,6 +27,7 @@ function show(r) {
     <h2>${head[2]}</h2>
     ${r.result === "already" ? `<p class="muted">${time(o.pickedAt)} に ${esc(o.pickedBy)} が記録</p>` : ""}
     <div class="show-no"><small>注文番号</small>${pad(o.no)}</div>
+    ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
     <ul class="big-items">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: colors[l.code] })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
     ${r.result === "ok" && o.studentId ? `<div class="sid check"><small>学生証の番号と同じか確認</small>${esc(o.studentId)}</div>` : ""}
     ${r.result === "ok" ? `<div class="needs">${need}</div><button class="link" type="button" id="undo">間違えたので戻す</button>` : ""}

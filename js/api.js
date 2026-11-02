@@ -112,7 +112,7 @@ function demoMenu(s) {
 function demoGroup(rows) {
   const map = {};
   for (const r of rows) {
-    const o = (map[r.id] ??= { id: r.id, no: r.no, day: r.day, time: r.time, type: r.type, email: r.email, byStaff: r.byStaff, status: r.status, secret: r.secret, lines: [], total: 0, free: 0, pickedBy: r.by || "", pickedAt: r.at || 0, studentId: r.sid || "" });
+    const o = (map[r.id] ??= { id: r.id, no: r.no, day: r.day, time: r.time, type: r.type, email: r.email, byStaff: r.byStaff, status: r.status, secret: r.secret, lines: [], total: 0, free: 0, pickedBy: r.by || "", pickedAt: r.at || 0, studentId: r.sid || "", slot: r.slot || "" });
     o.lines.push({ code: r.code, name: r.name, variant: r.variant, qty: r.qty });
     o.total += r.amount;
     o.free += r.free;
@@ -127,7 +127,9 @@ async function demoCall(action, p) {
   await new Promise((r) => setTimeout(r, 150));
   const s = demoLoad();
   const c = s.config;
-  const pub = () => ({ ...c, menu: demoMenu(s) });
+  const slots = [];
+  for (let t = 10 * 60 + 15; t <= 17 * 60; t += 15) slots.push(`${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`);
+  const pub = () => ({ ...c, slots, menu: demoMenu(s) });
   const staff = () => { if (p.staffKey !== "demo-key" && !demoUser(p.idToken)?.isStaff) fail("notStaff"); };
   const sidOfEmail = (e) => String(e || "").split("@")[0].replace(/^s/i, "");
   const freeLeft = (sid) => Math.max(0, c.freeLimit - s.rows
@@ -180,6 +182,7 @@ async function demoCall(action, p) {
       const totalQty = items.reduce((a, i) => a + i.qty, 0);
       if (!totalQty) fail("empty");
       if (!byStaff && totalQty > c.maxQty) fail("tooMany");
+      if (!byStaff && !slots.includes(p.slot)) fail("badSlot");
       for (const i of items) {
         const m = menu[i.code];
         if (!m || m.soldOut || (m.remaining !== null && m.remaining < i.qty)) fail("soldOut");
@@ -193,7 +196,7 @@ async function demoCall(action, p) {
         const f = Math.min(i.qty, free - used);
         used += f;
         total += (i.qty - f) * c.price;
-        s.rows.push({ no, day: c.day, time: Date.now(), type, email, code: m.code, name: m.name, variant: m.variant, qty: i.qty, free: f, amount: (i.qty - f) * c.price, status: "new", byStaff, id, secret, sid: cardSid || (email ? sidOfEmail(email) : "") });
+        s.rows.push({ no, day: c.day, time: Date.now(), type, email, code: m.code, name: m.name, variant: m.variant, qty: i.qty, free: f, amount: (i.qty - f) * c.price, status: "new", byStaff, id, secret, sid: cardSid || (email ? sidOfEmail(email) : ""), slot: p.slot || "" });
       }
       demoSave(s);
       return { id, secret, no, total, free: used };

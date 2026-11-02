@@ -169,7 +169,13 @@ function render() {
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = p.dataset.panel !== tab;
   $("cKitchen").textContent = waiting.length;
-  $("colNew").innerHTML = list(waiting, (o) => card(o, ""));
+  // 受け取り時間ごとにまとめる（店頭で入れた注文は「今すぐ」）
+  const bySlot = {};
+  for (const o of waiting) (bySlot[o.slot || "今すぐ"] ??= []).push(o);
+  const keys = Object.keys(bySlot).sort((a, b) => (a === "今すぐ" ? -1 : b === "今すぐ" ? 1 : a.localeCompare(b)));
+  $("colNew").innerHTML = keys.length
+    ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3>${bySlot[k].map((o) => card(o, "")).join("")}`).join("")
+    : `<div class="empty">なし</div>`;
 
   // 店頭で注文
   for (const b of $("cType").children) b.setAttribute("aria-pressed", b.dataset.type === counter.type);

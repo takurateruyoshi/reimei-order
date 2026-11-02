@@ -11,6 +11,7 @@ const ERR = {
   closed: "ただいま受付を停止しています",
   soldOut: "売り切れのドリンクがあります。選び直してください",
   tooMany: "1回に頼める杯数をこえています",
+  badSlot: "その受け取り時間はもう選べません。選び直してください",
   auth: "もう一度ログインしてください",
 };
 const errMsg = (e) => ERR[e?.message] || "うまくいきませんでした。もう一度試してください";
@@ -123,12 +124,27 @@ $("tickets").addEventListener("click", async (e) => {
   pollTickets(); loadState(); loadMe();
 });
 
+// 受け取り時間：今より後の枠だけ選べる
+let slot = null;
+const nowHHMM = () => new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" });
+const openSlots = () => (st?.slots || []).filter((s) => s >= nowHHMM());
+$("slots").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-slot]");
+  if (b) { slot = b.dataset.slot; $("sheetErr").hidden = true; renderSheet(); }
+});
+
 async function placeOrder(asStudent) {
+  if (!slot || !openSlots().includes(slot)) {
+    $("sheetErr").textContent = "受け取り時間を選んでください";
+    $("sheetErr").hidden = false;
+    return;
+  }
   const btn = document.querySelector("#pick .go");
   if (btn) btn.disabled = true;
   try {
     const r = await call("order", {
       items: cartLines().map((l) => ({ code: l.code, qty: l.qty })),
+      slot,
       ...(asStudent ? (token ? { idToken: token } : { studentId: cardSid }) : {}),
     });
     tickets.unshift({ id: r.id, secret: r.secret });
@@ -193,6 +209,11 @@ function renderSheet() {
   const q = cartQty();
   if (!q) { $("sheet").hidden = true; return; }
   $("lines").innerHTML = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b></li>`).join("");
+  const avail = openSlots();
+  if (slot && !avail.includes(slot)) slot = null;
+  $("slots").innerHTML = avail.length
+    ? avail.map((t) => `<button type="button" class="slot" data-slot="${t}" aria-pressed="${slot === t}">${t}</button>`).join("")
+    : `<p class="err">今日の受け取り時間は終わりました</p>`;
   const general = q * st.price;
   if (me?.isStudent) {
     const free = Math.min(me.freeLeft, q);
@@ -270,6 +291,7 @@ function renderTickets() {
     return `<article class="show ${ready ? "ready" : ""}">
       <p class="show-hint">この画面を店員さんに見せてね</p>
       <div class="show-no"><small>注文番号</small>${pad(o.no)}</div>
+      ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
       <ul class="big-items">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       <div class="needs">${need}</div>
