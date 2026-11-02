@@ -100,10 +100,15 @@ async function pollTickets() {
 
 // ---------- 操作 ----------
 $("menu").addEventListener("click", (e) => {
-  // 行をタップするとカートに1杯入る（減らすのは注文の確認画面で）
+  // 行をタップするとカートに1杯入る。カートに入っている行は、左の番号が「−」になり、そこを押すと1杯へる
   const row = e.target.closest("[data-code]");
   if (!row || row.disabled) return;
   const code = row.dataset.code;
+  if (e.target.closest("[data-dec-row]")) {
+    cart[code] = Math.max(0, (cart[code] || 0) - 1);
+    if (!cart[code]) delete cart[code];
+    return render();
+  }
   const m = byCode(code);
   if (cartQty() >= st.maxQty) return toast(`1回の注文は${st.maxQty}杯までです`);
   if (m.remaining !== null && (cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
@@ -238,7 +243,7 @@ function render() {
       <div class="rows">${g.items.map((m) => {
         const n = cart[m.code] || 0;
         return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut || !st.open ? "disabled" : ""}>
-          <span class="code">${esc(m.code)}</span>
+          ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
           ${m.variant ? cupSVG(m, "sm") : ""}
           <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
           ${n ? `<span class="qty">×${n}</span>` : ""}
