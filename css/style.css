@@ -383,3 +383,6 @@ html { touch-action: manipulation; }
 .give.armed { background: var(--danger); border-color: var(--danger); color: #fff; animation: pulse 1s ease-in-out infinite; }
 [data-panel="counter"].panel { background: transparent; border: 0; padding: 0; }
 .gbtn.google { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #1f1f1f; border: 1px solid #747775; border-radius: 999px; padding: 10px 16px; font-size: 14px; font-weight: 500; }
+.sid-input { width: 100%; font-family: var(--f-num); font-size: 24px; letter-spacing: .1em; text-align: center; padding: 8px; border: 2px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
+.sid-input:focus { border-color: var(--ok); outline: none; }
+.c-done { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }

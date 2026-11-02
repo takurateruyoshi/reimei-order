@@ -1,6 +1,6 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
-import { call, watchRev, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
-import { scanOrderQR } from "./scan.js";
+import { call, newId, watchRev, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { scanOrderQR, scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +10,7 @@ if (SHEET_URL) { $("sheetLink").href = SHEET_URL; $("sheetLink").hidden = false;
 
 let key = savedStaffKey();
 let st = null, orders = [], tab = "kitchen";
-let counter = { type: "student", cart: {} };
+let counter = { cart: {}, sid: "", freeLeft: null };
 let timer = null, lastSnap = "";
 
 const toast = (msg) => {
@@ -188,11 +188,6 @@ $("soldOut").addEventListener("click", (e) => {
   act({ action: "setConfig", soldOut: { [m.code]: m.soldOut } }, m.soldOut ? "売り切れにしました" : "販売中に戻しました");
 });
 
-$("cType").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-type]");
-  if (b) { counter.type = b.dataset.type; render(); }
-});
-// お客さんの画面と同じ：行をタップで1杯追加、左の「−」で1杯へらす
 $("cCodes").addEventListener("click", (e) => {
   const b = e.target.closest("[data-code]");
   if (!b || b.disabled) return;
@@ -206,24 +201,90 @@ $("cCodes").addEventListener("click", (e) => {
   }
   render();
 });
+// 店頭の注文：下のバー →「注文へ」→ 学部生か一般かを選ぶ。学部生は学籍番号が必要（学生証の読み取りか手入力）
+const cOpen = () => { $("cErr").hidden = true; $("cDone").hidden = true; $("cSheet").hidden = false; renderCounterSheet(); };
+const cClose = () => { $("cSheet").hidden = true; };
+$("cNext").onclick = cOpen;
+$("cClose").onclick = cClose;
+$("cSheet").addEventListener("click", (e) => { if (e.target === $("cSheet")) cClose(); });
 $("cLines").addEventListener("click", (e) => {
   const b = e.target.closest("[data-dec]");
-  if (b) { counter.cart[b.dataset.dec] -= 1; if (counter.cart[b.dataset.dec] <= 0) delete counter.cart[b.dataset.dec]; render(); }
+  if (!b) return;
+  counter.cart[b.dataset.dec] -= 1;
+  if (counter.cart[b.dataset.dec] <= 0) delete counter.cart[b.dataset.dec];
+  render();
+  if (!Object.keys(counter.cart).length) cClose(); else renderCounterSheet();
 });
-$("cGo").onclick = async () => {
-  $("cGo").disabled = true;
+let sidTimer = null;
+$("cSid").addEventListener("input", () => {
+  $("cSid").value = $("cSid").value.replace(/\D/g, "").slice(0, 7);
+  counter.sid = $("cSid").value;
+  counter.freeLeft = null;
+  renderCounterSheet();
+  clearTimeout(sidTimer);
+  if (counter.sid.length === 7) sidTimer = setTimeout(lookupSid, 200);
+});
+$("cScan").onclick = async () => {
+  const r = await scanStudentCard();
+  if (!r) return;
+  if (r.error) return toast(r.error);
+  $("cSid").value = counter.sid = r.studentId;
+  lookupSid();
+};
+async function lookupSid() {
+  const sid = counter.sid;
+  $("cSidInfo").textContent = "確認しています…";
+  try {
+    const r = await call("sidInfo", { studentId: sid });
+    if (counter.sid !== sid) return;
+    counter.freeLeft = r.freeLeft;
+  } catch { counter.freeLeft = null; }
+  renderCounterSheet();
+}
+async function counterOrder(type) {
+  $("cErr").hidden = true;
+  const btn = type === "student" ? $("cAsStu") : $("cAsGen");
+  btn.disabled = true;
   try {
     const r = await call("order", {
-      asStaff: true, staffKey: key, type: counter.type,
+      asStaff: true, staffKey: key, type, clientId: newId(),
+      ...(type === "student" ? { studentId: counter.sid } : {}),
       items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
     });
-    $("cResult").html = `番号 <b class="big-no" style="font-size:32px">${pad(r.no)}</b>${r.total ? `　${yen(r.total)} 受け取る` : ""}`;
     counter.cart = {};
+    counter.sid = "";
+    counter.freeLeft = null;
+    $("cSid").value = "";
+    $("cDone").hidden = false;
+    $("cDone").html = `<div class="show-no"><small>注文番号</small>${pad(r.no)}</div>${r.free ? `<div class="need-big id">無料 ${r.free}杯（学生証を確認）</div>` : ""}${r.total ? `<div class="need-big cash">${yen(r.total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
+    $("cAgain").onclick = cClose;
+    render();
+    lastSnap = "";
+    refresh();
   } catch (e) {
-    toast(e.message === "soldOut" ? "売り切れがあります" : "注文を入れられませんでした");
+    $("cErr").textContent = { soldOut: "売り切れがあります", needSid: "学籍番号を7桁で入れてください" }[e.message] || (e.network ? "通信できません。もう一度押してください" : "注文を入れられませんでした");
+    $("cErr").hidden = false;
   }
-  refresh();
-};
+  btn.disabled = false;
+}
+$("cAsStu").onclick = () => counterOrder("student");
+$("cAsGen").onclick = () => counterOrder("general");
+
+function renderCounterSheet() {
+  if ($("cSheet").hidden || !st) return;
+  const lines = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
+  const q = lines.reduce((a, l) => a + l.qty, 0);
+  $("cLines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
+  $("cGenPrice").textContent = yen(q * st.price);
+  const ok = /^\d{7}$/.test(counter.sid || "");
+  $("cAsStu").disabled = !ok || !q;
+  $("cAsGen").disabled = !q;
+  if (!ok) $("cSidInfo").textContent = "学籍番号を入れると無料の杯数が出ます";
+  else if (counter.freeLeft !== null && counter.freeLeft !== undefined) {
+    const free = Math.min(counter.freeLeft, q), pay = (q - free) * st.price;
+    $("cSidInfo").textContent = [free ? `無料 ${free}杯` : "無料は使用済み", pay ? `${yen(pay)}` : ""].filter(Boolean).join(" ＋ ");
+  }
+}
 
 // ---------- 表示 ----------
 function ageBar(o) {
@@ -263,7 +324,6 @@ function render() {
     : `<div class="empty">なし</div>`;
 
   // 店頭で注文
-  for (const b of $("cType").children) b.setAttribute("aria-pressed", b.dataset.type === counter.type);
   $("cCodes").html = groupMenu(st.menu).map((g) => `
     <article class="dish">
       <div class="dish-head">${cupSVG(g.items[0])}<h3>${esc(g.name)}</h3></div>
@@ -277,9 +337,15 @@ function render() {
         </button>`;
       }).join("")}</div>
     </article>`).join("");
-  const lines = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
-  $("cLines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${l.code}">−</button></li>`).join("");
-  $("cGo").disabled = !lines.length;
+  // 下のバー（店頭で注文のタブでカートに何か入っているときだけ）
+  const cl = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
+  const cq = cl.reduce((a, l) => a + l.qty, 0);
+  $("cBar").hidden = tab !== "counter" || !cq;
+  if (cq) {
+    $("cCups").html = cl.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
+    $("cCount").textContent = `${cq}杯`;
+  }
+  renderCounterSheet();
 
   // 管理
   for (const b of $("daySeg").children) b.setAttribute("aria-pressed", Number(b.dataset.day) === st.day);

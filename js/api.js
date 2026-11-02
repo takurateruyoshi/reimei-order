@@ -242,7 +242,10 @@ async function demoCall(action, p) {
       let type = "general", email = "", free = 0, byStaff = false, cardSid = "";
       if (p.asStaff) {
         staff(); byStaff = true;
-        if (p.type === "student") { type = "student"; free = c.freeLimit; }
+        if (p.type === "student") {
+          if (!/^\d{7}$/.test(String(p.studentId || ""))) fail("needSid");
+          type = "student"; cardSid = String(p.studentId); free = freeLeft(cardSid);
+        }
       } else {
         if (!c.open) fail("closed");
         if (p.idToken) {

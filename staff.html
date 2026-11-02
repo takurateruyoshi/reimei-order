@@ -45,10 +45,7 @@
     </section>
 
     <section data-panel="counter" class="panel" hidden>
-      <div class="seg" id="cType"><button type="button" data-type="student" aria-pressed="true">学部生（学生証を確認）</button><button type="button" data-type="general" aria-pressed="false">一般</button></div>
       <section class="menu-book" id="cCodes" aria-label="メニュー"></section>
-      <ul class="lines" id="cLines"></ul>
-      <div class="row"><button class="go" type="button" id="cGo" disabled>注文を入れる</button><span id="cResult"></span></div>
     </section>
 
     <section data-panel="admin" hidden style="display:flex;flex-direction:column;gap:16px">
@@ -67,6 +64,36 @@
       </div>
     </section>
   </main>
+</div>
+<div class="bar" id="cBar" hidden>
+  <div class="in">
+    <div class="cart-cups" id="cCups"></div>
+    <div class="sum"><b id="cCount"></b><span>店頭の注文</span></div>
+    <button class="go" id="cNext" type="button">注文へ</button>
+  </div>
+</div>
+<div class="sheet-bg" id="cSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cSheetTitle">
+    <div class="sheet-head"><h2 id="cSheetTitle">店頭の注文</h2><button class="x" id="cClose" type="button" aria-label="閉じる">×</button></div>
+    <ul class="lines" id="cLines"></ul>
+    <div class="choose">
+      <div class="opt-card">
+        <div class="tagp free" id="cStuTag">学部生</div>
+        <input id="cSid" class="sid-input" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="学籍番号7桁" autocomplete="off">
+        <button class="gbtn card" type="button" id="cScan">学生証を読み取る</button>
+        <small id="cSidInfo">学籍番号を入れると無料の杯数が出ます</small>
+        <button class="go" type="button" id="cAsStu" disabled>学部生で注文</button>
+      </div>
+      <div class="opt-card">
+        <div class="tagp paid">一般</div>
+        <div class="big" id="cGenPrice"></div>
+        <button class="go" type="button" id="cAsGen">一般で注文</button>
+        <small>現金で受け取る</small>
+      </div>
+    </div>
+    <p class="err" id="cErr" hidden></p>
+    <div class="c-done" id="cDone" hidden></div>
+  </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 <script type="module" src="js/staff.js"></script>
