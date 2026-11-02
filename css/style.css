@@ -357,3 +357,9 @@ h2 { font-family: var(--f-display); font-weight: 400; font-size: 18px; margin: 0
 .ocard .no small { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); }
 .ocard.bad { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 .bad-why { grid-column: 1 / -1; color: var(--danger); font-weight: 700; font-size: 13px; }
+
+/* ===== 読み込み中（中身は見せず、枠だけ出す） ===== */
+.sk-card { min-height: 92px; background: linear-gradient(90deg, var(--surface) 0%, var(--line) 50%, var(--surface) 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; border-color: var(--line); }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+main.loading .tabs, main.loading [data-panel="counter"], main.loading [data-panel="admin"] { pointer-events: none; opacity: .5; }
+main.loading #state { animation: pulse 1.4s ease-in-out infinite; }

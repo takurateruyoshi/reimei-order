@@ -306,6 +306,7 @@ function renderSheet() {
     onToken: async (t) => {
       token = t;
       saveToken(t);
+      $("pick").innerHTML = `<div class="pay-sum"><div class="spinner" aria-hidden="true"></div><small>大学のアカウントを確認しています…</small></div>`;
       await loadMe();
       if (!me?.isStudent) {
         token = null; me = null; saveToken(null);

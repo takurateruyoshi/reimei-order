@@ -17,15 +17,15 @@
   </header>
   <div class="demo" id="demo" hidden>デモモード <a href="index.html" target="_blank">お客さん画面</a></div>
 
-  <section class="gate" id="gate">
+  <section class="gate" id="gate" hidden>
     <h2>スタッフ用ページ</h2>
     <div id="gbtn"></div>
     <p class="err" id="gateErr" hidden></p>
   </section>
 
-  <main id="main" hidden style="display:flex;flex-direction:column;gap:16px">
+  <main id="main" class="loading" style="display:flex;flex-direction:column;gap:16px">
     <div class="net-off" id="netOff" hidden>通信できません。つながると自動で最新になります。その間の注文は、パソコンのスプレッドシート「注文」シートに直接書いてください</div>
-    <div class="banner" id="state"></div>
+    <div class="banner" id="state">読み込んでいます…</div>
     <nav class="tabs" role="tablist" id="tabs">
       <button role="tab" data-tab="kitchen" aria-selected="true">注文 <span class="count" id="cKitchen">0</span></button>
       <button role="tab" data-tab="counter" aria-selected="false">店頭で注文</button>
@@ -34,7 +34,7 @@
 
     <section data-panel="kitchen" class="col">
       <p class="muted" style="margin:0">上から順に作ってください。渡すときにお客さんの画面のQRをスマホのカメラで読み取ると、ここから消えます</p>
-      <div class="col" id="colNew"></div>
+      <div class="col" id="colNew"><div class="ocard sk-card"></div><div class="ocard sk-card"></div><div class="ocard sk-card"></div></div>
     </section>
 
     <section data-panel="counter" class="panel" hidden>

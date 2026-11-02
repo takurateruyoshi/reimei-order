@@ -22,35 +22,56 @@ const toast = (msg) => {
 const byCode = (code) => st?.menu.find((m) => m.code === code);
 
 // ---------- ログイン ----------
-// Googleで一度ログインすると合言葉（staffKey）をもらい、このスマホに3日間残る
+// Googleで一度ログインすると合言葉（staffKey）をもらい、このスマホに3日間残る。
+// 確認している間はログイン画面に戻さず、枠だけの「読み込み中」画面で待つ
+const EMAIL_KEY = "reimei-order-staff-email";
+function showLoading() {
+  $("gate").hidden = true;
+  $("main").hidden = false;
+  $("main").classList.add("loading");
+  $("state").className = "banner";
+  $("state").textContent = "読み込んでいます…";
+  $("colNew").innerHTML = `<div class="ocard sk-card"></div>`.repeat(3);
+}
 async function enter() {
+  showLoading();
   try {
-    const me = await call("staffMe", { staffKey: key });
-    $("gate").hidden = true;
-    $("main").hidden = false;
+    const r = await call("staffList", { staffKey: key });   // スタッフかどうかの確認もこれで兼ねる
+    let email = "";
+    try { email = localStorage.getItem(EMAIL_KEY) || ""; } catch {}
     $("who").hidden = false;
-    $("who").innerHTML = `<span>${esc(me.email)}</span><button type="button" id="out">ログアウト</button>`;
+    $("who").innerHTML = `<span>${esc(email)}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
-    await refresh();
+    apply(r);
+    $("main").classList.remove("loading");
     watchRev(refresh);
     timer = setInterval(refresh, 10000);
-  } catch {
+  } catch (e) {
+    if (e.network) {   // 電波が無いだけなら、読み込み中のまま待って送り直す
+      $("netOff").hidden = false;
+      setTimeout(enter, 3000);
+      return;
+    }
     saveStaffKey(null);
     key = null;
-    showLogin();
+    showLogin(e.message === "notStaff" ? "このアカウントはスタッフに登録されていません（スプレッドシートの「スタッフ」シート）" : "");
   }
 }
 function showLogin(msg) {
+  $("main").hidden = true;
+  $("gate").hidden = false;
   $("gateErr").hidden = !msg;
   if (msg) $("gateErr").textContent = msg;
   renderGoogleButton($("gbtn"), {
     student: false,
     onToken: async (t) => {
+      showLoading();
       try {
         const me = await call("me", { idToken: t });
-        if (!me.isStaff) return showLogin("このアカウントはスタッフに登録されていません（スプレッドシートの「設定」→スタッフ）");
+        if (!me.isStaff) return showLogin("このアカウントはスタッフに登録されていません（スプレッドシートの「スタッフ」シート）");
         key = me.staffKey;
         saveStaffKey(key);
+        try { localStorage.setItem(EMAIL_KEY, me.email); } catch {}
         enter();
       } catch {
         showLogin("ログインできませんでした");
@@ -58,19 +79,20 @@ function showLogin(msg) {
     },
   });
 }
-if (key) enter(); else showLogin();
 
+function apply(r) {
+  // 変わったときだけ描き直す（押している途中のボタンが消えないように）
+  const snap = JSON.stringify(r);
+  if (snap === lastSnap) return;
+  lastSnap = snap;
+  st = r.state;
+  orders = r.orders.sort((a, b) => a.no - b.no);
+  render();
+}
 async function refresh() {
   try {
-    const r = await call("staffList", { staffKey: key });
+    apply(await call("staffList", { staffKey: key }));
     $("netOff").hidden = true;
-    // 変わったときだけ描き直す（押している途中のボタンが消えないように）
-    const snap = JSON.stringify(r);
-    if (snap === lastSnap) return;
-    lastSnap = snap;
-    st = r.state;
-    orders = r.orders.sort((a, b) => a.no - b.no);
-    render();
   } catch (e) {
     if (e.network) $("netOff").hidden = false;
     if (e.message === "notStaff") { clearInterval(timer); saveStaffKey(null); location.reload(); }
@@ -208,3 +230,5 @@ function render() {
     ["現金 受け取り済み", yen(valid.filter((o) => o.status === "done").reduce((a, o) => a + o.total, 0))],
   ].map(([k, v]) => `<div class="tile"><small>${k}</small><b>${v}</b></div>`).join("");
 }
+
+if (key) enter(); else showLogin();
