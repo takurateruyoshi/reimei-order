@@ -386,3 +386,24 @@ html { touch-action: manipulation; }
 .sid-input { width: 100%; font-family: var(--f-num); font-size: 24px; letter-spacing: .1em; text-align: center; padding: 8px; border: 2px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
 .sid-input:focus { border-color: var(--ok); outline: none; }
 .c-done { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+
+/* 受け取り画面：1画面に収め、商品を主役に。QRは右下に小さく */
+.show { min-height: calc(100dvh - 150px); justify-content: space-between; gap: 10px; padding: 12px 0 16px; }
+.show-top { display: flex; gap: 28px; justify-content: center; align-items: flex-end; }
+.show-top .show-no { font-size: 44px; }
+.show-top .show-slot { font-size: 34px; }
+.big-items { flex: 1; justify-content: center; max-width: 480px; }
+.big-items.n1 .cup { width: 150px; height: 150px; }
+.big-items.n1 b { font-size: 36px; }
+.big-items.n1 span { font-size: 22px; }
+.big-items.n1 em { font-size: 48px; }
+.big-items.n2 .cup { width: 110px; height: 110px; }
+.big-items.n2 b { font-size: 30px; }
+.big-items.n4 .cup { width: 64px; height: 64px; }
+.big-items.n4 b { font-size: 22px; }
+.big-items.n4 em { font-size: 28px; }
+.show-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 480px; }
+.show-info { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; }
+.show-info .needs { justify-content: flex-start; }
+.show-foot .qr { width: 96px; height: 96px; padding: 4px; flex: none; }
+.show .sid { font-size: 24px; }

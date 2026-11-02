@@ -309,7 +309,7 @@ function render() {
   const waiting = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
 
   $("state").className = "banner" + (st.open ? "" : " closed");
-  $("state").textContent = `${st.day}日目　${st.open ? "受付中" : "受付停止中"}`;
+  $("state").textContent = st.open ? "受付中" : "受付停止中";
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = p.dataset.panel !== tab;
   $("cKitchen").textContent = waiting.length;
@@ -331,7 +331,7 @@ function render() {
         const n = counter.cart[m.code] || 0;
         return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut ? "disabled" : ""}>
           ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
-          ${m.variant ? cupSVG(m, "sm") : ""}
+          ${cupSVG(m, "sm")}
           <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
           ${n ? `<span class="qty">×${n}</span>` : ""}
         </button>`;

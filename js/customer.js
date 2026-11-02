@@ -245,7 +245,7 @@ function render() {
         const n = cart[m.code] || 0;
         return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
           ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
-          ${m.variant ? cupSVG(m, "sm") : ""}
+          ${cupSVG(m, "sm")}
           <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
           ${n ? `<span class="qty">×${n}</span>` : ""}
         </button>`;
@@ -356,12 +356,18 @@ function renderTickets() {
     ].join("");
     return `<article class="show ${ready ? "ready" : ""}">
       <p class="show-hint">この画面を店員さんに見せてね</p>
-      <div class="show-no"><small>注文番号</small>${pad(o.no)}</div>
-      ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
-      <ul class="big-items">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
-      <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
-      <div class="needs">${need}</div>
-      ${o.studentId ? `<div class="sid"><small>学籍番号（この番号で呼びます）</small>${esc(o.studentId)}</div>` : ""}
+      <div class="show-top">
+        <div class="show-no"><small>注文番号</small>${pad(o.no)}</div>
+        ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
+      </div>
+      <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
+      <div class="show-foot">
+        <div class="show-info">
+          ${o.studentId ? `<div class="sid"><small>学籍番号（この番号で呼びます）</small>${esc(o.studentId)}</div>` : ""}
+          <div class="needs">${need}</div>
+        </div>
+        <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
+      </div>
       ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">注文を取り消す</button>` : ""}
     </article>`;
   }).join("") + past.map((o) => `<p class="past">${pad(o.no)}　受け取り済み</p>`).join("");
