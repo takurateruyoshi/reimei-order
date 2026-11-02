@@ -1,6 +1,7 @@
 import { SHOP_NAME } from "./config.js";
 import { call, newId, watchRev, cachedState, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
+import SNAPSHOT from "./menu-snapshot.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -235,14 +236,14 @@ function render() {
     $("out").onclick = () => { token = null; me = null; saveToken(null); saveCard(null); render(); };
   }
   const scope = st.freeScope === "total" ? "期間中" : "1日";
-  $("priceNote").textContent = `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
+  $("priceNote").textContent = st.snapshot ? "最新の売り切れ・残り数を確認しています…" : `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
 
   $("menu").html = groupMenu(st.menu).map((g) => `
     <article class="dish">
       <div class="dish-head">${cupSVG(g.items[0])}<h3>${esc(g.name)}</h3></div>
       <div class="rows">${g.items.map((m) => {
         const n = cart[m.code] || 0;
-        return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut || !st.open ? "disabled" : ""}>
+        return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
           ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
           ${m.variant ? cupSVG(m, "sm") : ""}
           <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
@@ -369,8 +370,10 @@ function renderTickets() {
 }
 
 // 前回のメニューがあれば先に出しておく（数秒後に最新に入れかわる）
-st = cachedState();
-if (st) { $("loading").hidden = true; render(); }
+// 初めてなら見本のメニューを出し、確認が終わるまで注文は押せないようにしておく
+st = cachedState() || { ...SNAPSHOT, snapshot: true };
+$("loading").hidden = true;
+render();
 await Promise.all([loadState(), loadMe(), pollTickets()]);
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();

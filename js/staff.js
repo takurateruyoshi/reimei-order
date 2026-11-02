@@ -34,10 +34,21 @@ function showLoading() {
   $("state").textContent = "読み込んでいます…";
   $("colNew").html = `<div class="ocard sk-card"></div>`.repeat(3);
 }
+// 読み込みは順番に見せる：①お店の状態（受付・日付・メニュー）→ ②注文一覧。
+// ①は誰でも読める軽いデータなので先に出し、②が届いたら一覧を埋める
+let ordersLoaded = false;
 async function enter() {
   showLoading();
+  call("state").then((s) => {
+    if (ordersLoaded) return;
+    st = s;
+    $("main").classList.remove("loading");   // 受付の切り替えなどは先に使える
+    render();
+    $("state").textContent += "　注文を読み込んでいます…";
+  }).catch(() => {});
   try {
     const r = await call("staffList", { staffKey: key });   // スタッフかどうかの確認もこれで兼ねる
+    ordersLoaded = true;
     let email = "";
     try { email = localStorage.getItem(EMAIL_KEY) || ""; } catch {}
     $("who").hidden = false;
@@ -47,6 +58,10 @@ async function enter() {
     $("main").classList.remove("loading");
     watchRev(refresh);
     timer = setInterval(refresh, 10000);
+    // パソコンで書いた注文の整理とチェックは、一覧とは別に後ろで行う
+    const maintain = () => call("maintain", { staffKey: key }).catch(() => {});
+    maintain();
+    setInterval(maintain, 10000);
   } catch (e) {
     if (e.network) {   // 電波が無いだけなら、読み込み中のまま待って送り直す
       $("netOff").hidden = false;
@@ -206,7 +221,9 @@ function render() {
   const bySlot = {};
   for (const o of waiting) (bySlot[o.slot || "今すぐ"] ??= []).push(o);
   const keys = Object.keys(bySlot).sort((a, b) => (a === "今すぐ" ? -1 : b === "今すぐ" ? 1 : a.localeCompare(b)));
-  $("colNew").html = keys.length
+  if (!ordersLoaded) {
+    $("colNew").html = `<div class="ocard sk-card"></div>`.repeat(3);
+  } else $("colNew").html = keys.length
     ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3>${bySlot[k].map((o) => card(o, "")).join("")}`).join("")
     : `<div class="empty">なし</div>`;
 

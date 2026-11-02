@@ -193,6 +193,9 @@ async function demoCall(action, p) {
     case "sidInfo":
       if (!/^\d{7}$/.test(p.studentId)) fail("badCard");
       return { studentId: p.studentId, freeLeft: freeLeft(p.studentId) };
+    case "maintain":
+      staff();
+      return { ok: true };
     case "staffMe":
       staff();
       return { email: "staff@example.com" };
