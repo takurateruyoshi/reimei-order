@@ -1,5 +1,6 @@
 // お客さんのQRを読み取ったスタッフのスマホで開くページ。開いた時点で受け渡しを記録する。
 import { call, cachedState, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { scanOrderQR } from "./scan.js";
 import { esc, pad, yen, cupSVG, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -22,7 +23,7 @@ function show(r) {
     o.free ? `<span class="need-big id">${ID_ICON}学生証を確認</span>` : "",
     o.total ? `<span class="need-big cash">${COIN_ICON}${yen(o.total)}を受け取る</span>` : "",
   ].join("");
-  $("result").innerHTML = `<div class="pk ${head[0]}">
+  $("result").html = `<div class="pk ${head[0]}">
     <div class="pk-mark">${head[1]}</div>
     <h2>${head[2]}</h2>
     ${r.result === "already" ? `<p class="muted">${time(o.pickedAt)} に ${esc(o.pickedBy)} が記録</p>` : ""}
@@ -31,15 +32,24 @@ function show(r) {
     <ul class="big-items">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: colors[l.code] })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
     ${r.result === "ok" && o.studentId ? `<div class="sid check"><small>学生証の番号と同じか確認</small>${esc(o.studentId)}</div>` : ""}
     ${r.result === "ok" ? `<div class="needs">${need}</div><button class="link" type="button" id="undo">間違えたので戻す</button>` : ""}
+    <button class="go wide scan-btn" type="button" id="next">次のQRを読み取る</button>
     <a class="btn" href="staff.html${location.search.includes("demo") ? "?demo" : ""}">スタッフ画面へ</a>
   </div>`;
+  $("next").onclick = nextScan;
   $("result").hidden = false;
   $("loading").hidden = true;
   if (r.result === "ok") { try { navigator.vibrate?.(150); } catch {} }
   $("undo")?.addEventListener("click", async () => {
     await call("setStatus", { staffKey: key, id, status: "new" });
-    $("result").innerHTML = `<div class="pk"><h2>受け渡し前に戻しました</h2><a class="btn" href="staff.html">スタッフ画面へ</a></div>`;
+    $("result").html = `<div class="pk"><h2>受け渡し前に戻しました</h2><a class="btn" href="staff.html">スタッフ画面へ</a></div>`;
   });
+}
+
+async function nextScan() {
+  const r = await scanOrderQR();
+  if (!r) return;
+  if (r.error) { $("loading").hidden = false; $("loading").textContent = r.error; return; }
+  location.replace(`pickup.html?o=${encodeURIComponent(r.orderId)}${location.search.includes("demo") ? "&demo" : ""}`);
 }
 
 async function run() {

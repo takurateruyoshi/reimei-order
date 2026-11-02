@@ -1,5 +1,6 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
 import { call, watchRev, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { scanOrderQR } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +32,7 @@ function showLoading() {
   $("main").classList.add("loading");
   $("state").className = "banner";
   $("state").textContent = "読み込んでいます…";
-  $("colNew").innerHTML = `<div class="ocard sk-card"></div>`.repeat(3);
+  $("colNew").html = `<div class="ocard sk-card"></div>`.repeat(3);
 }
 async function enter() {
   showLoading();
@@ -40,7 +41,7 @@ async function enter() {
     let email = "";
     try { email = localStorage.getItem(EMAIL_KEY) || ""; } catch {}
     $("who").hidden = false;
-    $("who").innerHTML = `<span>${esc(email)}</span><button type="button" id="out">ログアウト</button>`;
+    $("who").html = `<span>${esc(email)}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     apply(r);
     $("main").classList.remove("loading");
@@ -106,6 +107,13 @@ async function act(payload, msg) {
 }
 
 // ---------- 操作 ----------
+// アプリの中でカメラを開いてお客さんのQRを読み、受け渡しの画面へ
+$("scanQR").onclick = async () => {
+  const r = await scanOrderQR();
+  if (!r) return;
+  if (r.error) return toast(r.error);
+  location.href = `pickup.html?o=${encodeURIComponent(r.orderId)}${DEMO ? "&demo" : ""}`;
+};
 $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
   if (b) { tab = b.dataset.tab; render(); }
@@ -159,7 +167,7 @@ $("cGo").onclick = async () => {
       asStaff: true, staffKey: key, type: counter.type,
       items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
     });
-    $("cResult").innerHTML = `番号 <b class="big-no" style="font-size:32px">${pad(r.no)}</b>${r.total ? `　${yen(r.total)} 受け取る` : ""}`;
+    $("cResult").html = `番号 <b class="big-no" style="font-size:32px">${pad(r.no)}</b>${r.total ? `　${yen(r.total)} 受け取る` : ""}`;
     counter.cart = {};
   } catch (e) {
     toast(e.message === "soldOut" ? "売り切れがあります" : "注文を入れられませんでした");
@@ -198,23 +206,23 @@ function render() {
   const bySlot = {};
   for (const o of waiting) (bySlot[o.slot || "今すぐ"] ??= []).push(o);
   const keys = Object.keys(bySlot).sort((a, b) => (a === "今すぐ" ? -1 : b === "今すぐ" ? 1 : a.localeCompare(b)));
-  $("colNew").innerHTML = keys.length
+  $("colNew").html = keys.length
     ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3>${bySlot[k].map((o) => card(o, "")).join("")}`).join("")
     : `<div class="empty">なし</div>`;
 
   // 店頭で注文
   for (const b of $("cType").children) b.setAttribute("aria-pressed", b.dataset.type === counter.type);
-  $("cCodes").innerHTML = st.menu.map((m) => `<button type="button" class="codebtn" data-code="${m.code}" ${m.soldOut ? "disabled" : ""}>
+  $("cCodes").html = st.menu.map((m) => `<button type="button" class="codebtn" data-code="${m.code}" ${m.soldOut ? "disabled" : ""}>
     <span class="code">${esc(m.code)}</span>${cupSVG(m)}<small>${esc(m.variant || m.name)}</small></button>`).join("");
   const lines = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
-  $("cLines").innerHTML = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${l.code}">−</button></li>`).join("");
+  $("cLines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${l.code}">−</button></li>`).join("");
   $("cGo").disabled = !lines.length;
 
   // 管理
   for (const b of $("daySeg").children) b.setAttribute("aria-pressed", Number(b.dataset.day) === st.day);
   $("openSw").setAttribute("aria-checked", !!st.open);
   $("openLabel").textContent = st.open ? "受付中（お客さんが注文できます）" : "受付停止中";
-  $("soldOut").innerHTML = st.menu.map((m) => `<div class="row">${cupSVG(m)}<span class="code">${esc(m.code)}</span>
+  $("soldOut").html = st.menu.map((m) => `<div class="row">${cupSVG(m)}<span class="code">${esc(m.code)}</span>
     <span style="flex:1;min-width:0">${esc(lineName(m))} ${m.remaining !== null ? `<small class="muted">のこり${m.remaining}</small>` : ""}${stockGauge(m)}</span>
     <button class="switch" role="switch" aria-checked="${!m.soldOut}" data-sold="${m.code}" aria-label="${esc(lineName(m))} 販売中"></button></div>`).join("");
 
@@ -222,7 +230,7 @@ function render() {
   const cups = (arr) => arr.reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0);
   const stu = valid.filter((o) => o.type === "student");
   const people = new Set(stu.filter((o) => o.email).map((o) => o.email)).size + stu.filter((o) => !o.email).length;
-  $("tiles").innerHTML = [
+  $("tiles").html = [
     ["学部生（人）", people],
     ["無料（杯）", valid.reduce((a, o) => a + o.free, 0)],
     ["合計（杯）", cups(valid)],

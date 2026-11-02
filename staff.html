@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>黎明祭 オーダー スタッフ</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://accounts.google.com">
@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="css/style.css">
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 </head>
 <body>
 <div class="wrap wide">
@@ -35,6 +36,7 @@
       <button role="tab" data-tab="admin" aria-selected="false">管理</button>
     </nav>
 
+    <button class="go wide scan-btn" type="button" id="scanQR">QRを読み取って渡す</button>
     <section data-panel="kitchen" class="col">
       <p class="muted" style="margin:0">上から順に作ってください。渡すときにお客さんの画面のQRをスマホのカメラで読み取ると、ここから消えます</p>
       <div class="col" id="colNew"><div class="ocard sk-card"></div><div class="ocard sk-card"></div><div class="ocard sk-card"></div></div>

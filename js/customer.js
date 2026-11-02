@@ -226,13 +226,13 @@ function render() {
   $("closedText").textContent = st.dayLeft === 0 && st.open ? "本日のモバイルオーダーは売り切れました" : "ただいま受付を停止しています";
   $("who").hidden = !me;
   if (me) {
-    $("who").innerHTML = `<span>学部生 ${esc(me.studentId || "")}</span><button type="button" id="out">ログアウト</button>`;
+    $("who").html = `<span>学部生 ${esc(me.studentId || "")}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { token = null; me = null; saveToken(null); saveCard(null); render(); };
   }
   const scope = st.freeScope === "total" ? "期間中" : "1日";
   $("priceNote").textContent = `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
 
-  $("menu").innerHTML = groupMenu(st.menu).map((g) => `
+  $("menu").html = groupMenu(st.menu).map((g) => `
     <article class="dish">
       <div class="dish-head">${cupSVG(g.items[0])}<h3>${esc(g.name)}</h3></div>
       <div class="rows">${g.items.map((m) => {
@@ -250,7 +250,7 @@ function render() {
   $("bar").hidden = !q;
   if (q) {
     const lines = cartLines();
-    $("cartCups").innerHTML = lines.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
+    $("cartCups").html = lines.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
     $("cartCount").textContent = `${q}杯`;
     const free = me?.isStudent ? Math.min(me.freeLeft, q) : 0;
     $("cartHint").textContent = me?.isStudent
@@ -265,10 +265,10 @@ function renderSheet() {
   const lines = cartLines();
   const q = cartQty();
   if (!q) { $("sheet").hidden = true; return; }
-  $("lines").innerHTML = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
+  $("lines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   const avail = openSlots();
   if (slot && !avail.includes(slot)) slot = null;
-  $("slots").innerHTML = avail.length
+  $("slots").html = avail.length
     ? avail.map((t) => `<button type="button" class="slot" data-slot="${t}" aria-pressed="${slot === t}">${t}<small>のこり${slotLeft(t)}</small></button>`).join("")
     : `<p class="err">今日の受け取り時間は終わりました</p>`;
   const general = q * st.price;
@@ -276,7 +276,7 @@ function renderSheet() {
     const free = Math.min(me.freeLeft, q);
     const pay = (q - free) * st.price;
     const need = [free ? "学生証を見せて" : "", pay ? `${yen(pay)}を現金で払って` : ""].filter(Boolean).join("、");
-    $("pick").innerHTML = `<div class="pay-sum">
+    $("pick").html = `<div class="pay-sum">
         <div class="tagp free">${ID_ICON}学部生（${esc(me.byCard ? `学籍番号 ${me.studentId}` : me.email)}）</div>
         <div class="big">${[free ? `無料 ${free}杯` : "", pay ? yen(pay) : ""].filter(Boolean).join(" ＋ ")}</div>
         <small>受け取りのときに${need}ください</small>
@@ -285,11 +285,11 @@ function renderSheet() {
     $("confirm").onclick = () => placeOrder(true);
     return;
   }
-  $("pick").innerHTML = `<div class="choose">
+  $("pick").html = `<div class="choose">
       <div class="opt-card">
         <div class="tagp free">${ID_ICON}学部生</div>
         <div class="big">${st.freeLimit ? `${Math.min(st.freeLimit, q)}杯無料` : yen(general)}</div>
-        <div id="gbtn"></div>
+        <div id="gbtn" data-keep></div>
         <button class="gbtn card" type="button" id="byCard">${ID_ICON}学生証を読み取る</button>
       </div>
       ${st.allowGeneral ? `<div class="opt-card">
@@ -301,12 +301,12 @@ function renderSheet() {
     </div>`;
   $("asGuest")?.addEventListener("click", () => placeOrder(false));
   $("byCard").onclick = scanCard;
-  renderGoogleButton($("gbtn"), {
+  if (!$("gbtn").childElementCount) renderGoogleButton($("gbtn"), {
     student: true,
     onToken: async (t) => {
       token = t;
       saveToken(t);
-      $("pick").innerHTML = `<div class="pay-sum"><div class="spinner" aria-hidden="true"></div><small>大学のアカウントを確認しています…</small></div>`;
+      $("pick").html = `<div class="pay-sum"><div class="spinner" aria-hidden="true"></div><small>大学のアカウントを確認しています…</small></div>`;
       await loadMe();
       if (!me?.isStudent) {
         token = null; me = null; saveToken(null);
@@ -339,7 +339,7 @@ function qrSVG(text) {
 function renderTickets() {
   const active = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
   const past = orders.filter((o) => o.status === "done").slice(0, 2);
-  $("tickets").innerHTML = active.map((o) => {
+  $("tickets").html = active.map((o) => {
     const idx = STEPS.findIndex(([s]) => s === o.status);
     const ready = o.status === "ready";
     const need = [

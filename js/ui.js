@@ -58,3 +58,40 @@ export function groupMenu(menu) {
   }
   return g;
 }
+
+// 画面を作り直さずに、変わったところだけ書きかえる（全体を入れ替えると揺れたり、動きが最初に戻ったりするため）。
+// data-keep の付いた要素の中身（Googleのログインボタンなど）はそのまま残す
+export function morph(el, html) {
+  if (el._html === html) return;
+  el._html = html;
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  syncChildren(el, tpl.content);
+}
+function syncChildren(oldParent, newParent) {
+  const olds = [...oldParent.childNodes], news = [...newParent.childNodes];
+  news.forEach((n, i) => {
+    const o = olds[i];
+    if (!o) return oldParent.appendChild(n);
+    if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName) return oldParent.replaceChild(n, o);
+    if (o.nodeType === 3 || o.nodeType === 8) {
+      if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue;
+      return;
+    }
+    syncAttrs(o, n);
+    if (o.hasAttribute?.("data-keep")) return;
+    syncChildren(o, n);
+  });
+  for (let i = olds.length - 1; i >= news.length; i--) oldParent.removeChild(olds[i]);
+}
+function syncAttrs(o, n) {
+  for (const { name } of [...o.attributes]) if (!n.hasAttribute(name)) o.removeAttribute(name);
+  for (const { name, value } of [...n.attributes]) if (o.getAttribute(name) !== value) o.setAttribute(name, value);
+  if ("disabled" in o) o.disabled = n.hasAttribute("disabled");
+}
+// el.html = "..." と書くと、変わったところだけ書きかえる
+Object.defineProperty(HTMLElement.prototype, "html", {
+  set(v) { morph(this, v); },
+  get() { return this.innerHTML; },
+  configurable: true,
+});
