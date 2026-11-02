@@ -1,7 +1,7 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
 import { call, watchRev, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { scanOrderQR } from "./scan.js";
-import { esc, pad, yen, lineName, cupSVG, stockGauge, ID_ICON, COIN_ICON } from "./ui.js";
+import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 $("shop").textContent = SHOP_NAME;
@@ -194,9 +194,19 @@ $("cType").addEventListener("click", (e) => {
   const b = e.target.closest("[data-type]");
   if (b) { counter.type = b.dataset.type; render(); }
 });
+// お客さんの画面と同じ：行をタップで1杯追加、左の「−」で1杯へらす
 $("cCodes").addEventListener("click", (e) => {
   const b = e.target.closest("[data-code]");
-  if (b) { counter.cart[b.dataset.code] = (counter.cart[b.dataset.code] || 0) + 1; render(); }
+  if (!b || b.disabled) return;
+  const code = b.dataset.code, m = byCode(code);
+  if (e.target.closest("[data-dec-row]")) {
+    counter.cart[code] = Math.max(0, (counter.cart[code] || 0) - 1);
+    if (!counter.cart[code]) delete counter.cart[code];
+  } else {
+    if (m?.remaining !== null && m?.remaining !== undefined && (counter.cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
+    counter.cart[code] = (counter.cart[code] || 0) + 1;
+  }
+  render();
 });
 $("cLines").addEventListener("click", (e) => {
   const b = e.target.closest("[data-dec]");
@@ -256,8 +266,19 @@ function render() {
 
   // 店頭で注文
   for (const b of $("cType").children) b.setAttribute("aria-pressed", b.dataset.type === counter.type);
-  $("cCodes").html = st.menu.map((m) => `<button type="button" class="codebtn" data-code="${m.code}" ${m.soldOut ? "disabled" : ""}>
-    <span class="code">${esc(m.code)}</span>${cupSVG(m)}<small>${esc(m.variant || m.name)}</small></button>`).join("");
+  $("cCodes").html = groupMenu(st.menu).map((g) => `
+    <article class="dish">
+      <div class="dish-head">${cupSVG(g.items[0])}<h3>${esc(g.name)}</h3></div>
+      <div class="rows">${g.items.map((m) => {
+        const n = counter.cart[m.code] || 0;
+        return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut ? "disabled" : ""}>
+          ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
+          ${m.variant ? cupSVG(m, "sm") : ""}
+          <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
+          ${n ? `<span class="qty">×${n}</span>` : ""}
+        </button>`;
+      }).join("")}</div>
+    </article>`).join("");
   const lines = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
   $("cLines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${l.code}">−</button></li>`).join("");
   $("cGo").disabled = !lines.length;
