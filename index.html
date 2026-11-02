@@ -48,6 +48,13 @@
     <p class="err" id="sheetErr" hidden></p>
   </div>
 </div>
+<div class="sending" id="sending" hidden role="status" aria-live="polite">
+  <div class="sending-box">
+    <div class="spinner" aria-hidden="true"></div>
+    <p id="sendingText"></p>
+    <button type="button" class="link" id="cancelSend">注文をやめる</button>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script type="module" src="js/customer.js"></script>

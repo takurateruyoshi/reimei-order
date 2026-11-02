@@ -342,3 +342,11 @@ h2 { font-family: var(--f-display); font-weight: 400; font-size: 18px; margin: 0
 .show-slot small { display: block; font-family: var(--f-body); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .slot-head { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 0; font-family: var(--f-num); font-size: 22px; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
 .slot-head span { font-family: var(--f-body); font-size: 13px; color: var(--muted); }
+
+/* ===== 送信中（スプレッドシートに書けるまで完了にしない） ===== */
+.sending { position: fixed; inset: 0; z-index: 30; background: rgb(0 0 0 / .55); display: flex; align-items: center; justify-content: center; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+.sending-box { background: var(--bg); border-radius: 18px; padding: 24px 20px; max-width: 360px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.sending-box p { margin: 0; font-weight: 700; line-height: 1.6; }
+.spinner { width: 44px; height: 44px; border-radius: 50%; border: 5px solid var(--line); border-top-color: var(--dawn); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.net-off { background: var(--danger); color: #fff; font-weight: 700; text-align: center; border-radius: 10px; padding: 8px 12px; }

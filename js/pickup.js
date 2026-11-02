@@ -49,7 +49,8 @@ async function run() {
     show(await call("pickup", { staffKey: key, id }));
   } catch (e) {
     if (e.message === "notStaff") { saveStaffKey(null); key = null; login(); return; }
-    $("loading").textContent = e.message === "notFound" ? "この注文は見つかりません" : "記録できませんでした。もう一度読み取ってください";
+    $("loading").textContent = e.network ? "電波が届きません。まだ記録されていないので、つながってからもう一度読み取ってください"
+      : e.message === "notFound" ? "この注文は見つかりません" : "記録できませんでした。もう一度読み取ってください";
   }
 }
 

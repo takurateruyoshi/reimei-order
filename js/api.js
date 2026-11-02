@@ -3,17 +3,32 @@ import { API_URL, GOOGLE_CLIENT_ID, STUDENT_DOMAIN } from "./config.js";
 
 export const DEMO = !API_URL || new URLSearchParams(location.search).has("demo");
 
+// 通信できなかったとき（電波なし・タイムアウト）は err.network = true になる
+const netError = () => Object.assign(new Error("network"), { network: true });
 export async function call(action, payload = {}) {
-  if (DEMO) return demoCall(action, payload);
-  const r = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, ...payload }),
-  });
-  const d = await r.json();
+  if (DEMO) {
+    if (!navigator.onLine) throw netError();
+    return demoCall(action, payload);
+  }
+  let d;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20000);
+    const r = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action, ...payload }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    d = await r.json();
+  } catch {
+    throw netError();
+  }
   if (d.error) throw new Error(d.error);
   return d;
 }
+export const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => (b % 36).toString(36)).join("") + Date.now().toString(36).slice(-4);
 
 // ---------- Googleログイン ----------
 const TOKEN_KEY = "reimei-order-token";
@@ -162,6 +177,10 @@ async function demoCall(action, p) {
       return { order: { ...o, status: "done", pickedBy: "staff@example.com", pickedAt: at }, result: "ok" };
     }
     case "order": {
+      if (p.clientId) {
+        const done = demoGroup(s.rows.filter((r) => r.id === p.clientId))[0];
+        if (done) return { id: done.id, secret: done.secret, no: done.no, total: done.total, free: done.free };
+      }
       let type = "general", email = "", free = 0, byStaff = false, cardSid = "";
       if (p.asStaff) {
         staff(); byStaff = true;
@@ -188,7 +207,7 @@ async function demoCall(action, p) {
         if (!m || m.soldOut || (m.remaining !== null && m.remaining < i.qty)) fail("soldOut");
       }
       const no = Math.max(0, ...s.rows.filter((r) => r.day === c.day).map((r) => r.no)) + 1;
-      const id = Math.random().toString(36).slice(2, 10);
+      const id = p.clientId || Math.random().toString(36).slice(2, 10);
       const secret = Math.random().toString(36).slice(2);
       let used = 0, total = 0;
       for (const i of items) {

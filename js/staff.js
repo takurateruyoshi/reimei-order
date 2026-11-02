@@ -62,6 +62,7 @@ if (key) enter(); else showLogin();
 async function refresh() {
   try {
     const r = await call("staffList", { staffKey: key });
+    $("netOff").hidden = true;
     // 変わったときだけ描き直す（押している途中のボタンが消えないように）
     const snap = JSON.stringify(r);
     if (snap === lastSnap) return;
@@ -70,6 +71,7 @@ async function refresh() {
     orders = r.orders.sort((a, b) => a.no - b.no);
     render();
   } catch (e) {
+    if (e.network) $("netOff").hidden = false;
     if (e.message === "notStaff") { clearInterval(timer); saveStaffKey(null); location.reload(); }
   }
 }

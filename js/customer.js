@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
@@ -139,28 +139,71 @@ async function placeOrder(asStudent) {
     $("sheetErr").hidden = false;
     return;
   }
-  const btn = document.querySelector("#pick .go");
-  if (btn) btn.disabled = true;
+  // 送る内容に番号（clientId）を付けて保存しておき、届くまで同じ内容を送り直す。
+  // スプレッドシートに書き込めたと返事が来てから、はじめて注文完了の画面を出す
+  pending = {
+    clientId: newId(),
+    items: cartLines().map((l) => ({ code: l.code, qty: l.qty })),
+    slot,
+    ...(asStudent ? (token ? { idToken: token } : { studentId: cardSid }) : {}),
+  };
+  savePending();
+  sendPending();
+}
+
+const PENDING_KEY = "reimei-order-pending";
+let pending = null, sending = false, retryTimer = null;
+try { pending = JSON.parse(localStorage.getItem(PENDING_KEY)); } catch {}
+function savePending() {
+  try { pending ? localStorage.setItem(PENDING_KEY, JSON.stringify(pending)) : localStorage.removeItem(PENDING_KEY); } catch {}
+}
+function showSending(text) {
+  $("sending").hidden = !text;
+  if (text) $("sendingText").textContent = text;
+}
+async function sendPending() {
+  if (!pending || sending) return;
+  sending = true;
+  clearTimeout(retryTimer);
+  $("sheet").hidden = true;
+  showSending("スプレッドシートに登録しています…");
   try {
-    const r = await call("order", {
-      items: cartLines().map((l) => ({ code: l.code, qty: l.qty })),
-      slot,
-      ...(asStudent ? (token ? { idToken: token } : { studentId: cardSid }) : {}),
-    });
+    const r = await call("order", pending);
+    pending = null;
+    savePending();
+    showSending(null);
     tickets.unshift({ id: r.id, secret: r.secret });
     try { localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets)); } catch {}
     cart = {};
-    $("sheet").hidden = true;
     toast(`注文しました（番号 ${pad(r.no)}）`);
     scrollTo({ top: 0, behavior: "smooth" });
     await Promise.all([pollTickets(), loadMe(), loadState()]);
   } catch (e) {
-    $("sheetErr").textContent = errMsg(e);
-    $("sheetErr").hidden = false;
-    if (btn) btn.disabled = false;
-    loadState();
+    if (e.network) {
+      showSending("電波が届きません。つながったら自動で送り直します（注文はまだ完了していません）");
+      retryTimer = setTimeout(sendPending, 4000);
+    } else {
+      pending = null;
+      savePending();
+      showSending(null);
+      $("sheet").hidden = false;
+      renderSheet();
+      $("sheetErr").textContent = errMsg(e);
+      $("sheetErr").hidden = false;
+      loadState();
+    }
+  } finally {
+    sending = false;
   }
 }
+addEventListener("online", () => sendPending());
+$("cancelSend").onclick = () => {
+  clearTimeout(retryTimer);
+  pending = null;
+  savePending();
+  showSending(null);
+  toast("注文をやめました");
+};
 
 // ---------- 表示 ----------
 function render() {
@@ -306,6 +349,7 @@ function renderTickets() {
 }
 
 await Promise.all([loadState(), loadMe(), pollTickets()]);
+if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();
 setInterval(pollTickets, 5000);
 setInterval(loadState, 5000);
