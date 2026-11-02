@@ -274,7 +274,6 @@ function renderTickets() {
       <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       <div class="needs">${need}</div>
       ${o.studentId ? `<div class="sid"><small>学籍番号</small>${esc(o.studentId)}</div>` : ""}
-      <div class="dots" aria-label="${STEPS[idx][1]}">${STEPS.map(([s, t], i) => `<span class="${i < idx ? "done" : ""} ${i === idx ? "now" : ""}"><i>${STEP_ICONS[s]}</i>${t}</span>`).join("")}</div>
       ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">注文を取り消す</button>` : ""}
     </article>`;
   }).join("") + past.map((o) => `<p class="past">${pad(o.no)}　受け取り済み</p>`).join("");
@@ -287,4 +286,4 @@ function renderTickets() {
 await Promise.all([loadState(), loadMe(), pollTickets()]);
 render();
 setInterval(pollTickets, 5000);
-setInterval(loadState, 20000);
+setInterval(loadState, 5000);

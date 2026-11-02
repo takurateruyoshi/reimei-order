@@ -26,18 +26,15 @@
   <main id="main" hidden style="display:flex;flex-direction:column;gap:16px">
     <div class="banner" id="state"></div>
     <nav class="tabs" role="tablist" id="tabs">
-      <button role="tab" data-tab="kitchen" aria-selected="true">厨房 <span class="count" id="cKitchen">0</span></button>
-      <button role="tab" data-tab="handoff" aria-selected="false">受け渡し <span class="count" id="cHandoff">0</span></button>
+      <button role="tab" data-tab="kitchen" aria-selected="true">注文 <span class="count" id="cKitchen">0</span></button>
       <button role="tab" data-tab="counter" aria-selected="false">店頭で注文</button>
       <button role="tab" data-tab="admin" aria-selected="false">管理</button>
     </nav>
 
-    <section data-panel="kitchen" class="cols">
-      <div class="col"><h3><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" class="line"/><path d="M9 8h6M9 12h6" class="line"/></svg>新しい注文</h3><div class="col" id="colNew"></div></div>
-      <div class="col"><h3><svg viewBox="0 0 24 24"><path d="M5 9h12v6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z" class="line"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17" class="line"/></svg>作っている</h3><div class="col" id="colMaking"></div></div>
+    <section data-panel="kitchen" class="col">
+      <p class="muted" style="margin:0">上から順に作ってください。渡すときにお客さんの画面のQRをスマホのカメラで読み取ると、ここから消えます</p>
+      <div class="col" id="colNew"></div>
     </section>
-
-    <section data-panel="handoff" class="col handoff" hidden><p class="muted" style="margin:0">お客さんの画面のQRをスマホのカメラで読み取ると、受け渡し完了が記録されます</p><div class="col" id="colReady"></div></section>
 
     <section data-panel="counter" class="panel" hidden>
       <div class="seg" id="cType"><button type="button" data-type="student" aria-pressed="true">学部生（学生証を確認）</button><button type="button" data-type="general" aria-pressed="false">一般</button></div>

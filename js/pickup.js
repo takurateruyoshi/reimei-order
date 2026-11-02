@@ -36,8 +36,8 @@ function show(r) {
   $("loading").hidden = true;
   if (r.result === "ok") { try { navigator.vibrate?.(150); } catch {} }
   $("undo")?.addEventListener("click", async () => {
-    await call("setStatus", { staffKey: key, id, status: "ready" });
-    $("result").innerHTML = `<div class="pk"><h2>できあがりに戻しました</h2><a class="btn" href="staff.html">スタッフ画面へ</a></div>`;
+    await call("setStatus", { staffKey: key, id, status: "new" });
+    $("result").innerHTML = `<div class="pk"><h2>受け渡し前に戻しました</h2><a class="btn" href="staff.html">スタッフ画面へ</a></div>`;
   });
 }
 

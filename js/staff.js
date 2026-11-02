@@ -10,7 +10,7 @@ if (SHEET_URL) { $("sheetLink").href = SHEET_URL; $("sheetLink").hidden = false;
 let key = savedStaffKey();
 let st = null, orders = [], tab = "kitchen";
 let counter = { type: "student", cart: {} };
-let timer = null;
+let timer = null, lastSnap = "";
 
 const toast = (msg) => {
   const t = $("toast");
@@ -62,6 +62,10 @@ if (key) enter(); else showLogin();
 async function refresh() {
   try {
     const r = await call("staffList", { staffKey: key });
+    // 変わったときだけ描き直す（押している途中のボタンが消えないように）
+    const snap = JSON.stringify(r);
+    if (snap === lastSnap) return;
+    lastSnap = snap;
     st = r.state;
     orders = r.orders.sort((a, b) => a.no - b.no);
     render();
@@ -71,7 +75,8 @@ async function refresh() {
 }
 async function act(payload, msg) {
   try { await call(payload.action, { ...payload, staffKey: key }); if (msg) toast(msg); }
-  catch { toast("うまくいきませんでした"); }
+  catch { toast("うまくいきませんでした。もう一度押してください"); }
+  lastSnap = "";
   refresh();
 }
 
@@ -91,14 +96,23 @@ document.addEventListener("click", (e) => {
 });
 $("daySeg").addEventListener("click", (e) => {
   const b = e.target.closest("[data-day]");
-  if (b) act({ action: "setConfig", day: Number(b.dataset.day) }, `${b.dataset.day}日目にしました`);
+  if (!b) return;
+  st.day = Number(b.dataset.day);   // 押したらすぐ画面に反映し、保存は後ろで行う
+  render();
+  act({ action: "setConfig", day: st.day }, `${st.day}日目にしました`);
 });
-$("openSw").onclick = () => act({ action: "setConfig", open: !st.open }, st.open ? "受付を止めました" : "受付を始めました");
+$("openSw").onclick = () => {
+  st.open = !st.open;
+  render();
+  act({ action: "setConfig", open: st.open }, st.open ? "受付を始めました" : "受付を止めました");
+};
 $("soldOut").addEventListener("click", (e) => {
   const b = e.target.closest("[data-sold]");
   if (!b) return;
   const m = byCode(b.dataset.sold);
-  act({ action: "setConfig", soldOut: { [m.code]: !m.soldOut } });
+  m.soldOut = !m.soldOut;
+  render();
+  act({ action: "setConfig", soldOut: { [m.code]: m.soldOut } }, m.soldOut ? "売り切れにしました" : "販売中に戻しました");
 });
 
 $("cType").addEventListener("click", (e) => {
@@ -148,20 +162,14 @@ const list = (arr, fn) => (arr.length ? arr.map(fn).join("") : `<div class="empt
 
 function render() {
   if (!st) return;
-  const by = (s) => orders.filter((o) => o.status === s);
-  const nNew = by("new"), nMaking = by("making"), nReady = by("ready");
+  const waiting = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
 
   $("state").className = "banner" + (st.open ? "" : " closed");
   $("state").textContent = `${st.day}日目　${st.open ? "受付中" : "受付停止中"}`;
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = p.dataset.panel !== tab;
-  $("cKitchen").textContent = nNew.length + nMaking.length;
-  $("cHandoff").textContent = nReady.length;
-
-  $("colNew").innerHTML = list(nNew, (o) => card(o, `<button class="act" data-set="making" data-id="${o.id}">作る</button>`));
-  $("colMaking").innerHTML = list(nMaking, (o) => card(o, `<button class="act dawn" data-set="ready" data-id="${o.id}">できた</button>`));
-  $("colReady").innerHTML = list(nReady, (o) => card(o,
-    `<div style="display:flex;flex-direction:column;gap:4px"><button class="act ok" data-set="done" data-id="${o.id}" data-no="${o.no}">渡した</button><button class="mini" data-set="making" data-id="${o.id}">戻す</button></div>`));
+  $("cKitchen").textContent = waiting.length;
+  $("colNew").innerHTML = list(waiting, (o) => card(o, ""));
 
   // 店頭で注文
   for (const b of $("cType").children) b.setAttribute("aria-pressed", b.dataset.type === counter.type);
