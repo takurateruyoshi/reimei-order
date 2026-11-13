@@ -556,3 +556,27 @@ html, body { overscroll-behavior-y: contain; }
 .tickets.many { overflow-x: auto; }
 .top { min-width: 0; } .top .who { min-width: 0; max-width: 62%; overflow: hidden; } .top .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 #cCodes.menu-book { display: block; }
+
+/* 受け渡しの一覧：カード型（2列） */
+.ocards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 640px) { .ocards { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; } }
+.ocard2 { display: flex; flex-direction: column; border: 1.5px solid var(--line); border-radius: 14px; background: var(--bg); overflow: hidden; min-width: 0; }
+.ocard2.sk-card { min-height: 190px; }
+.ocard2 .opic { position: relative; display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 70px; padding: 6px; background: color-mix(in srgb, var(--tint) 14%, #fff); }
+.ocard2 .ocup { position: relative; display: inline-flex; }
+.ocard2 .ocup .cup { width: 50px; height: 50px; }
+.ocard2 .ocup b { position: absolute; right: -8px; top: -2px; background: var(--dawn); color: #fff; font: 700 11px var(--f-num); border-radius: 99px; padding: 1px 6px; }
+.ocard2 .otag { position: absolute; left: 6px; top: 5px; font-size: 10.5px; font-weight: 700; color: var(--muted); background: #ffffffcc; border-radius: 99px; padding: 0 7px; }
+.ocard2 .obody { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px 4px; flex: 1; }
+.ocard2 .ono { font-family: var(--f-num); font-size: 22px; line-height: 1.1; letter-spacing: .02em; }
+.ocard2 .ono small { display: block; font-family: var(--f-body); font-size: 10.5px; color: var(--muted); letter-spacing: 0; }
+.ocard2 .olist { list-style: none; margin: 0; padding: 0; font-size: 12.5px; font-weight: 700; line-height: 1.35; }
+.ocard2 .olist .code { font-family: var(--f-num); font-size: 10.5px; color: var(--muted); margin-right: 4px; font-weight: 500; }
+.ocard2 .oneed { display: flex; flex-wrap: wrap; gap: 4px; }
+.ocard2 .oneed .need { font-size: 11.5px; padding: 1px 7px; }
+.ocard2 .oneed .need svg { width: 14px; height: 14px; }
+.ocard2 .age { width: 100%; margin-top: auto; }
+.ocard2 .give { margin: 6px 8px 8px; padding: 9px 0; border-radius: 99px; min-width: 0; font-size: 14px; }
+.ocard2.bad { border-color: var(--danger); }
+.ocard2 .bad-why { font-size: 11.5px; font-weight: 700; color: var(--danger); background: #fdecea; padding: 3px 8px; }
+.ocard2 .age { flex: none; height: 4px; }

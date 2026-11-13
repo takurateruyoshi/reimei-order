@@ -295,12 +295,19 @@ function ageBar(o) {
 }
 const need = (o) => (o.free ? `<span class="need id">${ID_ICON}学生証</span>` : "") + (o.total ? `<span class="need cash">${COIN_ICON}${yen(o.total)}</span>` : "");
 
+// お客さん画面のメニューと同じカード型（上に飲み物の絵、下に呼び出し番号・内容・「渡した」）
 function card(o, btn) {
-  return `<article class="ocard ${o.problem ? "bad" : ""}">${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
-    <div class="no">${o.studentId ? `<span class="call">${esc(o.studentId)}</span><small>No.${pad(o.no)}</small>` : pad(o.no)}</div>
-    <ul class="olines">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
+  const tint = byCode(o.lines[0]?.code)?.color || "#999";
+  return `<article class="ocard2 ${o.problem ? "bad" : ""}" style="--tint:${tint}">
+    <div class="opic">${o.lines.map((l) => `<span class="ocup">${cupSVG({ ...l, color: byCode(l.code)?.color })}${l.qty > 1 ? `<b>×${l.qty}</b>` : ""}</span>`).join("")}${o.byStaff ? `<small class="otag">店頭</small>` : ""}</div>
+    ${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
+    <div class="obody">
+      <div class="ono">${o.studentId ? `${esc(o.studentId)}<small>No.${pad(o.no)}</small>` : `No.${pad(o.no)}`}</div>
+      <ul class="olist">${o.lines.map((l) => `<li><span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
+      <div class="oneed">${need(o)}</div>
+      ${ageBar(o)}
+    </div>
     ${btn}
-    <div class="sub">${need(o)}${ageBar(o)}${o.byStaff ? `<span class="mini">店頭</span>` : ""}</div>
   </article>`;
 }
 const list = (arr, fn) => (arr.length ? arr.map(fn).join("") : `<div class="empty">なし</div>`);
@@ -319,9 +326,9 @@ function render() {
   for (const o of waiting) (bySlot[o.slot || "今すぐ"] ??= []).push(o);
   const keys = Object.keys(bySlot).sort((a, b) => (a === "今すぐ" ? -1 : b === "今すぐ" ? 1 : a.localeCompare(b)));
   if (!ordersLoaded) {
-    $("colNew").html = `<div class="ocard sk-card"></div>`.repeat(3);
+    $("colNew").html = `<div class="ocards">${`<div class="ocard2 sk-card"></div>`.repeat(4)}</div>`;
   } else $("colNew").html = keys.length
-    ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3>${bySlot[k].map((o) => card(o, `<button type="button" class="give ${armed === o.id ? "armed" : ""}" data-give="${esc(o.id)}">${armed === o.id ? "もう一度で完了" : "渡した"}</button>`)).join("")}`).join("")
+    ? keys.map((k) => `<h3 class="slot-head">${esc(k)}<span>${bySlot[k].reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0)}杯</span></h3><div class="ocards">${bySlot[k].map((o) => card(o, `<button type="button" class="give ${armed === o.id ? "armed" : ""}" data-give="${esc(o.id)}">${armed === o.id ? "もう一度で完了" : "渡した"}</button>`)).join("")}</div>`).join("")
     : `<div class="empty">なし</div>`;
 
   // 店頭で注文
