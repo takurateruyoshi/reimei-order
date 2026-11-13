@@ -5,7 +5,7 @@ compatibility_date = "2025-09-01"
 
 [vars]
 # Apps Script をウェブアプリとしてデプロイしたURL（…/exec）
-GAS_URL = "https://script.google.com/macros/s/REPLACE/exec"
+GAS_URL = "https://script.google.com/macros/s/AKfycbxv5N2YLQEoCUVAK77b3hl6Hn5FsuyhubMLa6MYVXjZexspS383CurBacN7oIN7N4hh2w/exec"
 
 # 注文をまとめる係（1つだけ動かす）。無料プランは SQLite 型の Durable Object のみ使える
 [[durable_objects.bindings]]
