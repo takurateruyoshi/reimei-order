@@ -1,5 +1,5 @@
 // サーバー（Apps Script）とのやりとり。API_URL が無ければブラウザ内のデモサーバーを使う。
-import { API_URL, GOOGLE_CLIENT_ID, STUDENT_DOMAIN } from "./config.js";
+import { API_URL, RELAY_URL, GOOGLE_CLIENT_ID, STUDENT_DOMAIN } from "./config.js";
 
 export const DEMO = !API_URL || new URLSearchParams(location.search).has("demo");
 
@@ -14,16 +14,7 @@ export async function call(action, payload = {}) {
   let d;
   for (let i = 0; ; i++) {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 30000);
-      const r = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action, ...payload }),
-        signal: ctrl.signal,
-      });
-      clearTimeout(t);
-      d = await r.json();
+      d = await post(action, payload);
     } catch {
       throw netError();
     }
@@ -36,6 +27,33 @@ export async function call(action, payload = {}) {
   if (d.error) throw new Error(d.error);
   if (action === "state") saveState(d);
   return d;
+}
+
+// 1回送る。まず中継サーバーへ。中継に届かない・返事がおかしいときは、そのまま Apps Script に直接送り、
+// しばらく（2分）は中継を使わない。注文には番号（clientId）が付いているので、両方に届いても二重にはならない
+let relayOffUntil = 0;
+async function post(action, payload) {
+  const body = JSON.stringify({ action, ...payload });
+  if (RELAY_URL && Date.now() > relayOffUntil) {
+    try {
+      return await send(RELAY_URL, body, 30000);
+    } catch {
+      const d = await send(API_URL, body, 30000);   // ここでも届かなければ電波がない（中継のせいではない）
+      relayOffUntil = Date.now() + 120000;
+      return d;
+    }
+  }
+  return send(API_URL, body, 30000);
+}
+async function send(url, body, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body, signal: ctrl.signal });
+    return await r.json();
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 // 最後に読んだメニューなどを覚えておき、次に開いたときはまずそれを出す（そのあとすぐ最新に入れかえる）
