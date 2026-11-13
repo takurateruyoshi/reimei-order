@@ -492,3 +492,10 @@ html, body { overscroll-behavior-y: contain; }
 .gbtn.wide { width: 100%; justify-content: center; }
 .tlist.inline { max-height: none; }
 .gate { align-items: stretch; text-align: left; width: 100%; } .gate .tlist.inline, .gate .hgroup, .gate .hhead { width: 100%; }
+
+.tr2.full { cursor: default; color: #b5b8bf; } .tr2.full .radio { border-color: #e3e4e8; background: #f4f5f7; }
+.tr2 .sold { margin-left: auto; font: 700 12px var(--f-body); color: var(--danger); background: #fdecea; border-radius: 99px; padding: 2px 9px; }
+#sheetSteps .steps3 { grid-template-columns: repeat(4, 1fr); margin: 0 0 10px; }
+.tpick .tlab { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); }
+.slot-pick { margin: 8px 0; }
+.sheet-err { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: #fdecea; }

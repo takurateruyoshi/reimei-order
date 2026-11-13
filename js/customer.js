@@ -138,7 +138,7 @@ $("tickets").addEventListener("click", async (e) => {
 });
 
 // 受け取り時間：今より後の枠だけ選べる
-let slot = null;
+let slot = null, editTime = false;
 try { slot = sessionStorage.getItem("reimei-order-slot"); } catch {}
 // デモでは ?demo&now=12:00 のように時刻を決めて、受け取り時間の動きを試せる
 const NOW_TEST = DEMO && /^\d{1,2}:\d{2}$/.test(new URLSearchParams(location.search).get("now") || "") ? new URLSearchParams(location.search).get("now").padStart(5, "0") : null;
@@ -165,7 +165,7 @@ let openHour = null;
 // 注文は「ログイン → 受け取り時間 → メニュー」の順に進む
 let guest = false;
 try { guest = sessionStorage.getItem("reimei-order-guest") === "1"; } catch {}
-const STEPS3 = ["ログイン", "受け取り時間", "注文"];
+const STEPS3 = ["商品", "ログイン", "受け取り時間", "確認"];
 const stepBar = (i) => `<ol class="steps3">${STEPS3.map((t, k) => `<li class="${k < i ? "done" : k === i ? "now" : ""}"><b>${k + 1}</b>${t}</li>`).join("")}</ol>`;
 function gateStep() {
   if (!st || st.snapshot || !st.open) return null;
@@ -214,19 +214,21 @@ function renderTimes(listEl = $("tlist"), nowEl = $("tnow")) {
   if (!openHour || !(hours[openHour] || []).some(okOf)) openHour = (slot && slot.slice(0, 2)) || Object.keys(hours).find((h) => hours[h].some(okOf)) || null;
   listEl.html = Object.entries(hours).map(([h, ts]) => {
     const ok = ts.filter(okOf);
+    const shown = ts.filter((t) => slotStatus(t)[0] !== "closed");   // 締め切り前の時間（売り切れも含めて見せる）
     const open = h === openHour && ok.length;
-    const why = ok.length ? "" : ts.every((t) => slotStatus(t)[0] === "closed") ? "受付終了" : "満";
+    const why = ok.length ? "" : shown.length ? "売り切れ" : "受付終了";
     return `<li class="hgroup ${open ? "open" : ""} ${ok.length ? "" : "none"}">
       <button type="button" class="hhead" ${ok.length ? `data-hour="${h}"` : "disabled"} aria-expanded="${!!open}">${Number(h)}:00〜${why ? `<span class="why">${why}</span>` : `<span class="chev" aria-hidden="true"></span>`}</button>
-      ${open ? `<div class="hslots">${ok.map((t) => {
-        const few = slotStatus(t)[0] === "few";
-        return `<button type="button" class="tr2" data-slot="${t}" aria-pressed="${slot === t}"><span class="radio" aria-hidden="true"></span><span class="tw">${Number(t.slice(0, 2))}:${t.slice(3)} 〜 ${Number(endOf(t).slice(0, 2))}:${endOf(t).slice(3)}</span>${few ? `<span class="few">残り${slotLeft(t)}</span>` : ""}</button>`;
+      ${open ? `<div class="hslots">${shown.map((t) => {
+        const st2 = slotStatus(t)[0], full = st2 === "full";
+        const range = `${Number(t.slice(0, 2))}:${t.slice(3)} 〜 ${Number(endOf(t).slice(0, 2))}:${endOf(t).slice(3)}`;
+        return `<button type="button" class="tr2 ${full ? "full" : ""}" ${full ? "disabled" : `data-slot="${t}"`} aria-pressed="${slot === t}"><span class="radio" aria-hidden="true"></span><span class="tw">${range}</span>${full ? `<span class="sold">売り切れ</span>` : st2 === "few" ? `<span class="few">残り${slotLeft(t)}</span>` : ""}</button>`;
       }).join("")}</div>` : ""}
     </li>`;
   }).join("");
 }
 const openTimes = () => { $("tico").innerHTML = cupSVG(st?.menu?.[0] || {}); openHour = null; renderTimes(); $("tsheet").hidden = false; $("tlist").querySelector(".hgroup.open")?.scrollIntoView({ block: "start" }); };
-document.addEventListener("click", (e) => { if (e.target.closest("[data-open-times]")) openTimes(); });
+document.addEventListener("click", (e) => { if (e.target.closest("[data-open-times]")) { editTime = true; openHour = null; render(); } });
 document.addEventListener("click", (e) => {
   const box = e.target.closest("#tlist, #glist");
   if (!box) return;
@@ -235,6 +237,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-slot]");
   if (!b) return;
   slot = b.dataset.slot;
+  editTime = false;
   try { sessionStorage.setItem("reimei-order-slot", slot); } catch {}
   $("tsheet").hidden = true;
   $("sheetErr").hidden = true;
@@ -304,11 +307,20 @@ async function sendPending() {
         await loadState().catch(() => {});
       }
       showSending(null);
+      if (e.message === "soldOut") {
+        // 商品がなくなった → メニューに戻り、売り切れになった商品を見せる
+        $("sheet").hidden = true;
+        mode = "order";
+        render();
+        $("menu").scrollIntoView({ block: "start", behavior: "smooth" });
+        toast(ERR.soldOut);
+        return;
+      }
+      if (["slotFull", "badSlot", "dayFull"].includes(e.message)) { slot = null; editTime = true; openHour = null; }   // 時間がだめ → 時間の画面へ
       $("sheet").hidden = false;
       renderSheet();
       $("sheetErr").textContent = errMsg(e);
       $("sheetErr").hidden = false;
-      if ($("sheet").hidden) toast(errMsg(e));   // 売り切れでカートが空になったとき
       if (!STALE.includes(e.message)) loadState();
     }
   } finally {
@@ -360,7 +372,7 @@ function render() {
   fitNames();
 
   const anyOpen = openSlots().length > 0;
-  $("tbar").dataset.off = !st.open || st.snapshot ? "1" : "";
+  $("tbar").dataset.off = "1";   // 受け取り時間はログインのあとに選ぶ
   $("tbar").hidden = $("tbar").dataset.off === "1";
   $("tbar").html = slot
     ? `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tl"><small>受け取り時間</small>${slot}〜${endOf(slot)}</span><span class="tch">変更</span>`
@@ -388,15 +400,29 @@ function renderSheet() {
   const lines = cartLines();
   const q = cartQty();
   if (!q) { $("sheet").hidden = true; return; }
+  // 商品 → ログイン → 受け取り時間 → 確認
+  const step = !me?.isStudent && !guest ? 1 : !slot || editTime || !openSlots().includes(slot) ? 2 : 3;
+  $("sheetTitle").textContent = ["", "ログイン", "受け取り時間", "注文の確認"][step];
+  $("sheetSteps").html = stepBar(step);
   $("lines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
-  const avail = openSlots();
-  if (slot && !avail.includes(slot)) slot = null;
-  $("slots").html = !avail.length
-    ? `<p class="err">今日の受け取り時間は終わりました</p>`
-    : slot
-      ? `<button type="button" class="tpick on" data-open-times><span class="tw">${slot}<small>〜${endOf(slot)}</small></span><span class="tch">変更</span></button>`
-      : `<button type="button" class="tpick" data-open-times><span>受け取り時間を選ぶ</span><span class="tch">›</span></button>`;
+  if (step === 2) {
+    $("slots").html = openSlots().length || (st.slots || []).some((t) => t >= cutoffHHMM())
+      ? `<p class="tnow" id="gnow"></p><ul class="tlist inline" id="glist"></ul>`
+      : `<p class="err">今日の受け取り時間は終わりました</p>`;
+    if ($("glist")) renderTimes($("glist"), $("gnow"));
+    $("pick").html = "";
+    return;
+  }
+  $("slots").html = step === 3
+    ? `<button type="button" class="tpick on" data-open-times><span class="tw"><small class="tlab">受け取り時間</small>${slot}<small>〜${endOf(slot)}</small></span><span class="tch">変更</span></button>`
+    : "";
   const general = q * st.price;
+  if (guest && !me?.isStudent) {
+    $("pick").html = `<div class="pay-sum"><div class="tagp paid">${COIN_ICON}一般</div><div class="big">${yen(general)}</div><small>受け取りのとき現金で払ってください</small></div>
+      <button class="go wide" type="button" id="confirm">この内容で注文する</button>`;
+    $("confirm").onclick = () => placeOrder(false);
+    return;
+  }
   if (me?.isStudent) {
     const free = Math.min(me.freeLeft, q);
     const pay = (q - free) * st.price;
@@ -420,11 +446,11 @@ function renderSheet() {
       ${st.allowGeneral ? `<div class="opt-card">
         <div class="tagp paid">${COIN_ICON}一般</div>
         <div class="big">${yen(general)}</div>
-        <button class="go" type="button" id="asGuest">注文する</button>
+        <button class="go" type="button" id="asGuest">一般の方として進む</button>
         <small>受け取りのとき現金で</small>
       </div>` : `<div class="opt-card"><div class="tagp paid">${COIN_ICON}一般の方</div><small>モバイルオーダーは学生専用です。店頭の列にお並びください</small></div>`}
     </div>`;
-  $("asGuest")?.addEventListener("click", () => placeOrder(false));
+  $("asGuest")?.addEventListener("click", () => { guest = true; try { sessionStorage.setItem("reimei-order-guest", "1"); } catch {} render(); });
   $("byCard").onclick = scanCard;
   if (!$("gbtn").childElementCount) renderGoogleButton($("gbtn"), {
     student: true,
@@ -510,7 +536,7 @@ function applyMode() {
   $("tcount").textContent = has ? activeCount : "";
   document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
   $("tickets").hidden = !t;
-  const step = t ? null : gateStep();
+  const step = null;   // 手順は注文の確認シートの中で進める
   renderGate(step);
   const off = t || !!step;
   for (const id of ["priceNote", "tbar", "menu"]) $(id).hidden = off || (id === "tbar" && $(id).dataset.off === "1");
