@@ -407,3 +407,12 @@ html { touch-action: manipulation; }
 .show-info .needs { justify-content: flex-start; }
 .show-foot .qr { width: 96px; height: 96px; padding: 4px; flex: none; }
 .show .sid { font-size: 24px; }
+
+/* 下に引っぱって更新（ブラウザ標準の再読み込みは止める） */
+html, body { overscroll-behavior-y: contain; }
+.ptr { position: fixed; top: 0; left: 50%; z-index: 30; width: 40px; height: 40px; border-radius: 50%; background: var(--surface); box-shadow: 0 2px 8px rgba(0,0,0,.18); display: grid; place-items: center; transform: translate(-50%, -50px); opacity: 0; pointer-events: none; }
+.ptr svg { width: 22px; height: 22px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ptr.ready svg { stroke: var(--dawn); }
+.ptr.spin { transform: translate(-50%, 40px) !important; opacity: 1 !important; }
+.ptr.spin svg { stroke: var(--dawn); animation: ptrspin .8s linear infinite; }
+@keyframes ptrspin { to { transform: rotate(360deg); } }

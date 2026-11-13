@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, watchRev, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
@@ -409,7 +409,40 @@ if (backToken) {
 }
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();
-// 変更があったときだけ読み直す（念のため30秒ごとにも確認）
-// お客さんは人数が多いので10秒ごと（その間に売り切れても、注文時にサーバーが確かめて最新を読み直す）
-watchRev(() => Promise.all([loadState(), pollTickets()]), 10000);
-setInterval(() => { loadState(); pollTickets(); }, 30000);
+// 最新にするのは「画面を下に引っぱったとき」と「アプリに戻ってきたとき」だけ（自動の問い合わせはしない）。
+// その間に売り切れても、注文時にサーバーが確かめて最新を読み直す
+const refresh = () => Promise.all([loadState(), pollTickets()]);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+pullToRefresh(refresh);
+
+function pullToRefresh(onRefresh) {
+  const el = $("ptr"), PULL = 70;
+  let y0 = null, dy = 0, busy = false;
+  const set = (d) => {
+    el.style.transform = `translate(-50%, ${Math.min(d, PULL + 20) - 50}px) rotate(${d * 4}deg)`;
+    el.style.opacity = Math.min(1, d / PULL);
+    el.classList.toggle("ready", d >= PULL);
+  };
+  addEventListener("touchstart", (e) => {
+    if (busy || scrollY > 0 || !$("sheet").hidden || e.touches.length !== 1) return;
+    y0 = e.touches[0].clientY; dy = 0;
+  }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    dy = Math.max(0, (e.touches[0].clientY - y0) * 0.5);
+    if (scrollY > 0) { y0 = null; dy = 0; }
+    set(dy);
+  }, { passive: true });
+  addEventListener("touchend", async () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (dy < PULL) { el.style.transition = "transform .2s, opacity .2s"; set(0); setTimeout(() => (el.style.transition = ""), 200); return; }
+    busy = true;
+    el.classList.add("spin");
+    try { await onRefresh(); } catch {}
+    el.classList.remove("spin", "ready");
+    el.style.transition = "transform .2s, opacity .2s"; set(0);
+    setTimeout(() => (el.style.transition = ""), 200);
+    busy = false;
+  });
+}
