@@ -479,3 +479,16 @@ html, body { overscroll-behavior-y: contain; }
 .tr2[aria-pressed="true"] .radio { border-color: var(--dawn); }
 .tr2[aria-pressed="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--dawn); }
 .tr2 .few { margin-left: auto; font: 700 12px var(--f-body); color: var(--dawn); background: var(--dawn-soft); border-radius: 99px; padding: 2px 9px; }
+
+/* ログイン → 受け取り時間 → 注文 */
+.gate { display: flex; flex-direction: column; gap: 12px; }
+.steps3 { list-style: none; margin: 0 0 4px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.steps3 li { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #b5b8bf; border-top: 3px solid #e3e4e8; padding-top: 6px; }
+.steps3 li b { width: 20px; height: 20px; border-radius: 50%; background: #e3e4e8; color: #fff; display: grid; place-items: center; font: 700 11px var(--f-num); flex: none; }
+.steps3 li.now { color: var(--ink); border-color: var(--dawn); } .steps3 li.now b { background: var(--dawn); }
+.steps3 li.done { color: var(--ok); border-color: var(--ok); } .steps3 li.done b { background: var(--ok); }
+.gh { font-family: var(--f-display); font-weight: 400; font-size: 22px; margin: 4px 0 0; }
+.gs { margin: 0; font-size: 13px; color: var(--muted); }
+.gbtn.wide { width: 100%; justify-content: center; }
+.tlist.inline { max-height: none; }
+.gate { align-items: stretch; text-align: left; width: 100%; } .gate .tlist.inline, .gate .hgroup, .gate .hhead { width: 100%; }

@@ -79,7 +79,7 @@ async function loadMe() {
 async function scanCard() {
   const r = await scanStudentCard();
   if (!r) return;
-  if (r.error) { $("sheetErr").textContent = r.error; $("sheetErr").hidden = false; return; }
+  if (r.error) { const el = !$("gate").hidden && $("gateErr") ? $("gateErr") : $("sheetErr"); el.textContent = r.error; el.hidden = false; return; }
   token = null; saveToken(null);
   saveCard(r.studentId);
   await loadMe();
@@ -139,6 +139,7 @@ $("tickets").addEventListener("click", async (e) => {
 
 // 受け取り時間：今より後の枠だけ選べる
 let slot = null;
+try { slot = sessionStorage.getItem("reimei-order-slot"); } catch {}
 // デモでは ?demo&now=12:00 のように時刻を決めて、受け取り時間の動きを試せる
 const NOW_TEST = DEMO && /^\d{1,2}:\d{2}$/.test(new URLSearchParams(location.search).get("now") || "") ? new URLSearchParams(location.search).get("now").padStart(5, "0") : null;
 const nowHHMM = () => NOW_TEST || new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" });
@@ -161,13 +162,57 @@ function slotStatus(t) {
 }
 // 時間ごとにまとめ、開いた時間の中から選ぶ（選べる時間だけ丸ボタンで出す）
 let openHour = null;
-function renderTimes() {
-  $("tnow").textContent = `いま ${nowHHMM()}　各時間の${st?.cutoff ?? 10}分前に締め切り`;
+// 注文は「ログイン → 受け取り時間 → メニュー」の順に進む
+let guest = false;
+try { guest = sessionStorage.getItem("reimei-order-guest") === "1"; } catch {}
+const STEPS3 = ["ログイン", "受け取り時間", "注文"];
+const stepBar = (i) => `<ol class="steps3">${STEPS3.map((t, k) => `<li class="${k < i ? "done" : k === i ? "now" : ""}"><b>${k + 1}</b>${t}</li>`).join("")}</ol>`;
+function gateStep() {
+  if (!st || st.snapshot || !st.open) return null;
+  if (!me?.isStudent && !guest) return "login";
+  if (!slot || !openSlots().includes(slot)) return openSlots().length ? "time" : null;
+  return null;
+}
+function renderGate(step) {
+  const g = $("gate");
+  g.hidden = !step;
+  if (!step) return;
+  if (step === "login") {
+    g.html = `${stepBar(0)}
+      <h2 class="gh">ログイン</h2>
+      <p class="gs">学部生は1日${st.freeLimit || 0}杯無料。大学のGoogleアカウントか学生証で確認します</p>
+      <div id="gbtn2" data-keep></div>
+      <button class="gbtn card wide" type="button" id="byCard2">${ID_ICON}学生証を読み取る</button>
+      ${st.allowGeneral ? `<button class="link" type="button" id="asGuest2">一般の方（ログインせずに注文）</button>` : `<p class="gs">一般の方は店頭の列にお並びください</p>`}
+      <p class="err" id="gateErr" hidden></p>`;
+    $("byCard2").onclick = scanCard;
+    $("asGuest2")?.addEventListener("click", () => { guest = true; try { sessionStorage.setItem("reimei-order-guest", "1"); } catch {} render(); });
+    if (!$("gbtn2").childElementCount) renderGoogleButton($("gbtn2"), {
+      student: true,
+      beforeLeave: () => { try { sessionStorage.setItem(LOGIN_KEEP, JSON.stringify({ cart, slot })); } catch {} },
+      onToken: async (t) => {
+        token = t; saveToken(t);
+        await loadMe();
+        if (!me?.isStudent) { token = null; me = null; saveToken(null); $("gateErr").textContent = ERR.notStudent; $("gateErr").hidden = false; return; }
+        render();
+      },
+    });
+    return;
+  }
+  g.html = `${stepBar(1)}
+    <h2 class="gh">受け取り時間</h2>
+    <p class="tnow" id="gnow"></p>
+    <ul class="tlist inline" id="glist"></ul>`;
+  renderTimes($("glist"), $("gnow"));
+}
+
+function renderTimes(listEl = $("tlist"), nowEl = $("tnow")) {
+  nowEl.textContent = `いま ${nowHHMM()}　各時間の${st?.cutoff ?? 10}分前に締め切り`;
   const hours = {};
   for (const t of st?.slots || []) (hours[t.slice(0, 2)] ||= []).push(t);
   const okOf = (t) => ["open", "few"].includes(slotStatus(t)[0]);
   if (!openHour || !(hours[openHour] || []).some(okOf)) openHour = (slot && slot.slice(0, 2)) || Object.keys(hours).find((h) => hours[h].some(okOf)) || null;
-  $("tlist").html = Object.entries(hours).map(([h, ts]) => {
+  listEl.html = Object.entries(hours).map(([h, ts]) => {
     const ok = ts.filter(okOf);
     const open = h === openHour && ok.length;
     const why = ok.length ? "" : ts.every((t) => slotStatus(t)[0] === "closed") ? "受付終了" : "満";
@@ -182,12 +227,15 @@ function renderTimes() {
 }
 const openTimes = () => { $("tico").innerHTML = cupSVG(st?.menu?.[0] || {}); openHour = null; renderTimes(); $("tsheet").hidden = false; $("tlist").querySelector(".hgroup.open")?.scrollIntoView({ block: "start" }); };
 document.addEventListener("click", (e) => { if (e.target.closest("[data-open-times]")) openTimes(); });
-$("tlist").addEventListener("click", (e) => {
+document.addEventListener("click", (e) => {
+  const box = e.target.closest("#tlist, #glist");
+  if (!box) return;
   const hb = e.target.closest("[data-hour]");
-  if (hb) { openHour = openHour === hb.dataset.hour ? null : hb.dataset.hour; return renderTimes(); }
+  if (hb) { openHour = openHour === hb.dataset.hour ? null : hb.dataset.hour; return box.id === "glist" ? render() : renderTimes(); }
   const b = e.target.closest("[data-slot]");
   if (!b) return;
   slot = b.dataset.slot;
+  try { sessionStorage.setItem("reimei-order-slot", slot); } catch {}
   $("tsheet").hidden = true;
   $("sheetErr").hidden = true;
   render();
@@ -295,7 +343,7 @@ function render() {
   $("who").hidden = !me;
   if (me) {
     $("who").html = `<span>学部生 ${esc(me.studentId || "")}</span><button type="button" id="out">ログアウト</button>`;
-    $("out").onclick = () => { token = null; me = null; saveToken(null); saveCard(null); render(); };
+    $("out").onclick = () => { token = null; me = null; saveToken(null); saveCard(null); guest = false; try { sessionStorage.removeItem("reimei-order-guest"); } catch {} render(); };
   }
   const scope = st.freeScope === "total" ? "期間中" : "1日";
   $("priceNote").textContent = st.snapshot ? "最新の売り切れ・残り数を確認しています…" : `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
@@ -462,9 +510,11 @@ function applyMode() {
   $("tcount").textContent = has ? activeCount : "";
   document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
   $("tickets").hidden = !t;
-  for (const id of ["priceNote", "tbar", "menu"]) $(id).hidden = t || (id === "tbar" && $(id).dataset.off === "1");
-  if (t) $("bar").hidden = true;
-  else $("bar").hidden = !cartQty();
+  const step = t ? null : gateStep();
+  renderGate(step);
+  const off = t || !!step;
+  for (const id of ["priceNote", "tbar", "menu"]) $(id).hidden = off || (id === "tbar" && $(id).dataset.off === "1");
+  $("bar").hidden = off || !cartQty();
 }
 $("modes").addEventListener("click", (e) => {
   const b = e.target.closest("[data-mode]");
