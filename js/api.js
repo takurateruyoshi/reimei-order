@@ -5,25 +5,33 @@ export const DEMO = !API_URL || new URLSearchParams(location.search).has("demo")
 
 // 通信できなかったとき（電波なし・タイムアウト）は err.network = true になる
 const netError = () => Object.assign(new Error("network"), { network: true });
+const BUSY = /ロック|lock|同時に実行中|too many/i;
 export async function call(action, payload = {}) {
   if (DEMO) {
     if (!navigator.onLine) throw netError();
     return demoCall(action, payload);
   }
   let d;
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 20000);
-    const r = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, ...payload }),
-      signal: ctrl.signal,
-    });
-    clearTimeout(t);
-    d = await r.json();
-  } catch {
-    throw netError();
+  for (let i = 0; ; i++) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 30000);
+      const r = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, ...payload }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      d = await r.json();
+    } catch {
+      throw netError();
+    }
+    // 注文が重なって順番待ちが時間切れになったとき（サーバーが混んでいるとき）は、少し待って同じ内容を送り直す。
+    // 注文には番号（clientId）が付いているので、二重にはならない
+    if (!BUSY.test(d.error || "")) break;
+    if (i >= 2) throw Object.assign(netError(), { busy: true });
+    await new Promise((ok) => setTimeout(ok, 1500 + Math.random() * 2500));
   }
   if (d.error) throw new Error(d.error);
   if (action === "state") saveState(d);

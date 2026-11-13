@@ -296,8 +296,10 @@ async function sendPending() {
     await Promise.all([pollTickets(), loadMe(), loadState()]);
   } catch (e) {
     if (e.network) {
-      showSending("電波が届きません。つながったら自動で送り直します（注文はまだ完了していません）");
-      retryTimer = setTimeout(sendPending, 4000);
+      showSending(e.busy
+        ? "混み合っています。順番に送り直しています（注文はまだ完了していません）"
+        : "電波が届きません。つながったら自動で送り直します（注文はまだ完了していません）");
+      retryTimer = setTimeout(sendPending, e.busy ? 2000 + Math.random() * 3000 : 4000);
     } else {
       pending = null;
       savePending();
