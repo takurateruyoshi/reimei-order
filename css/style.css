@@ -529,3 +529,7 @@ html, body { overscroll-behavior-y: contain; }
 .sheet.tall .lines li { padding: 4px 0; font-size: 14px; }
 .sheet.tall .lines .cup { width: 26px; height: 26px; }
 .tpick, .tpick.on { border: none; padding: 6px 2px; border-radius: 0; border-bottom: 1px solid var(--line); }
+/* いっぱいの時間は全体を薄くして選べない */
+.tr2.full { opacity: .4; pointer-events: none; }
+.tr2.full .sold { color: var(--muted); background: #eceef1; }
+.hgroup.none .hhead { opacity: .45; }
