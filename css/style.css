@@ -524,3 +524,8 @@ html, body { overscroll-behavior-y: contain; }
 .big-items span, .big-items.n1 span { font-size: 14px; }
 .big-items em, .big-items.n1 em, .big-items.n4 em { font-size: 24px; }
 .choose { grid-template-columns: 1fr; } .opt-card .gbtn, .opt-card #gbtn { width: 100%; } .opt-card .gbtn.card { justify-content: center; }
+/* 受け取り時間の画面でも商品を出す（小さめ）／確認の時間は枠なし */
+.sheet.tall .lines { display: block; }
+.sheet.tall .lines li { padding: 4px 0; font-size: 14px; }
+.sheet.tall .lines .cup { width: 26px; height: 26px; }
+.tpick, .tpick.on { border: none; padding: 6px 2px; border-radius: 0; border-bottom: 1px solid var(--line); }
