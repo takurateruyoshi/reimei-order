@@ -404,6 +404,7 @@ function renderSheet() {
   const step = !me?.isStudent && !guest ? 1 : !slot || editTime || !openSlots().includes(slot) ? 2 : 3;
   $("sheetTitle").textContent = ["", "ログイン", "受け取り時間", "注文の確認"][step];
   $("sheetSteps").html = stepBar(step);
+  $("sheet").querySelector(".sheet").classList.toggle("tall", step === 2);   // 時間選択は画面いっぱいに大きく出す
   $("lines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   if (step === 2) {
     $("slots").html = openSlots().length || (st.slots || []).some((t) => t >= cutoffHHMM())

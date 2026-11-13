@@ -499,3 +499,28 @@ html, body { overscroll-behavior-y: contain; }
 .tpick .tlab { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); }
 .slot-pick { margin: 8px 0; }
 .sheet-err { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: #fdecea; }
+
+/* 時間選択は大きく表示 */
+.sheet.tall { min-height: 94dvh; }
+.sheet.tall .lines { display: none; }
+.sheet.tall .tnow { font-size: 14px; }
+.sheet.tall .hhead { font-size: 20px; padding: 20px 2px; }
+.sheet.tall .hhead .why { font-size: 14px; }
+.sheet.tall .tr2 { font-size: 20px; padding: 14px 4px; gap: 16px; }
+.sheet.tall .tr2 .radio { width: 28px; height: 28px; }
+.sheet.tall .tr2[aria-pressed="true"] .radio::after { inset: 5px; }
+.sheet.tall .tr2 .sold, .sheet.tall .tr2 .few { font-size: 14px; }
+/* 受け取り画面：QRを一番大きく */
+.show { gap: 8px; }
+.show-foot { flex-direction: column-reverse; align-items: center; gap: 8px; }
+.show-foot .qr { width: min(78vw, 44dvh, 340px); height: min(78vw, 44dvh, 340px); padding: 8px; }
+.show-info { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 14px; text-align: center; }
+.show-info .needs { justify-content: center; }
+.show .sid { font-size: 20px; } .show .sid small { display: inline; margin-right: 6px; }
+.show-top .show-no { font-size: 36px; } .show-top .show-slot { font-size: 28px; }
+.big-items { flex: 0 1 auto; gap: 4px; }
+.big-items .cup, .big-items.n1 .cup, .big-items.n2 .cup, .big-items.n4 .cup { width: 48px; height: 48px; }
+.big-items b, .big-items.n1 b, .big-items.n2 b, .big-items.n4 b { font-size: 20px; }
+.big-items span, .big-items.n1 span { font-size: 14px; }
+.big-items em, .big-items.n1 em, .big-items.n4 em { font-size: 24px; }
+.choose { grid-template-columns: 1fr; } .opt-card .gbtn, .opt-card #gbtn { width: 100%; } .opt-card .gbtn.card { justify-content: center; }
