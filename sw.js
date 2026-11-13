@@ -1,7 +1,7 @@
 // 一度開いたページをスマホに保存しておき、電波が弱い・圏外のときもすぐ開けるようにする。
 // 自分のページ（画面・JS・CSS）は、つながるときは毎回最新を取りに行き、圏外や応答が遅いときだけ保存した物を出す。
 // 版が決まっている部品・字体は保存した物を使う。注文のやりとり（Apps Script）は保存しない。
-const CACHE = "reimei-v3";
+const CACHE = "reimei-v4";
 const NET_WAIT = 4000;
 const SHELL = [
   "./", "index.html", "staff.html", "pickup.html", "privacy.html",

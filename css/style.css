@@ -1,19 +1,11 @@
 :root {
-  --bg: #f6f5f1; --surface: #ffffff; --ink: #1d2433; --muted: #5f6675; --line: #dcdad3;
+  --bg: #ffffff; --surface: #ffffff; --ink: #1d2433; --muted: #5f6675; --line: #e3e4e8;
   --dawn: #e07a2c; --dawn-soft: #fbe8d6; --sky: #2f4b7c; --sky-soft: #e3e9f4; --ok: #2e7d5b; --ok-soft: #dcf0e6;
   --danger: #c0392b; --cream: #fff6e6; --ice: #ffffffcc;
   --f-display: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
   --f-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141821; --surface: #1c212d; --ink: #e9e7e1; --muted: #a2a7b3; --line: #2e3442;
-    --dawn: #f0954d; --dawn-soft: #3a2a1e; --sky: #8fb0e6; --sky-soft: #22304a; --ok: #5fc497; --ok-soft: #1b3328;
-    --danger: #ef6b5b; --cream: #f3e6cf; --ice: #ffffffaa;
-    color-scheme: dark;
-  }
+  color-scheme: light;   /* 白ベースで固定（スマホがダークモードでも白） */
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
