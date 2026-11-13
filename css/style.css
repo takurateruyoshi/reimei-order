@@ -461,3 +461,21 @@ html, body { overscroll-behavior-y: contain; }
 .show { min-height: calc(100dvh - 200px); }
 .tbar { padding: 6px 12px; margin-bottom: 10px; }
 .modes { margin-bottom: 8px; }
+
+/* 時間選択：時間ごとに開いて、丸ボタンで選ぶ */
+.tshop { display: flex; align-items: center; gap: 12px; padding: 4px 0 12px; border-bottom: 1px solid var(--line); font-size: 16px; }
+.tico { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--ok); display: grid; place-items: center; background: var(--dawn-soft); }
+.tico .cup { width: 32px; height: 32px; }
+.tnow { margin: 8px 0 0; }
+.hgroup { border-bottom: 1px solid var(--line); }
+.hhead { width: 100%; display: flex; align-items: center; justify-content: space-between; border: none; background: none; padding: 16px 2px; font: 700 15px var(--f-body); color: var(--ink); cursor: pointer; text-align: left; }
+.hhead:disabled { color: #b5b8bf; cursor: default; }
+.hhead .why { font-size: 12px; font-weight: 700; color: var(--muted); }
+.hhead .chev { width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); margin-right: 6px; transition: transform .15s; }
+.hgroup.open .hhead .chev { transform: rotate(-135deg); }
+.hslots { display: flex; flex-direction: column; padding: 0 0 10px; }
+.tr2 { display: flex; align-items: center; gap: 14px; border: none; background: none; padding: 10px 4px; font: 700 15px var(--f-num); color: var(--ink); cursor: pointer; text-align: left; }
+.tr2 .radio { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c9ccd2; flex: none; position: relative; }
+.tr2[aria-pressed="true"] .radio { border-color: var(--dawn); }
+.tr2[aria-pressed="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--dawn); }
+.tr2 .few { margin-left: auto; font: 700 12px var(--f-body); color: var(--dawn); background: var(--dawn-soft); border-radius: 99px; padding: 2px 9px; }

@@ -159,18 +159,32 @@ function slotStatus(t) {
   if (left <= 5) return ["few", `残りわずか（${left}）`];
   return ["open", "受付中"];
 }
+// 時間ごとにまとめ、開いた時間の中から選ぶ（選べる時間だけ丸ボタンで出す）
+let openHour = null;
 function renderTimes() {
   $("tnow").textContent = `いま ${nowHHMM()}　各時間の${st?.cutoff ?? 10}分前に締め切り`;
-  $("tlist").html = (st?.slots || []).map((t) => {
-    const [cls, label] = slotStatus(t);
-    const ok = cls === "open" || cls === "few";
-    return `<li><button type="button" class="trow ${cls}" ${ok ? `data-slot="${t}"` : "disabled"} aria-pressed="${slot === t}">
-      <span class="tw">${t}<small>〜${endOf(t)}</small></span><span class="ts">${label}</span><span class="tc" aria-hidden="true">${slot === t ? "✓" : ok ? "›" : ""}</span></button></li>`;
+  const hours = {};
+  for (const t of st?.slots || []) (hours[t.slice(0, 2)] ||= []).push(t);
+  const okOf = (t) => ["open", "few"].includes(slotStatus(t)[0]);
+  if (!openHour || !(hours[openHour] || []).some(okOf)) openHour = (slot && slot.slice(0, 2)) || Object.keys(hours).find((h) => hours[h].some(okOf)) || null;
+  $("tlist").html = Object.entries(hours).map(([h, ts]) => {
+    const ok = ts.filter(okOf);
+    const open = h === openHour && ok.length;
+    const why = ok.length ? "" : ts.every((t) => slotStatus(t)[0] === "closed") ? "受付終了" : "満";
+    return `<li class="hgroup ${open ? "open" : ""} ${ok.length ? "" : "none"}">
+      <button type="button" class="hhead" ${ok.length ? `data-hour="${h}"` : "disabled"} aria-expanded="${!!open}">${Number(h)}:00〜${why ? `<span class="why">${why}</span>` : `<span class="chev" aria-hidden="true"></span>`}</button>
+      ${open ? `<div class="hslots">${ok.map((t) => {
+        const few = slotStatus(t)[0] === "few";
+        return `<button type="button" class="tr2" data-slot="${t}" aria-pressed="${slot === t}"><span class="radio" aria-hidden="true"></span><span class="tw">${Number(t.slice(0, 2))}:${t.slice(3)} 〜 ${Number(endOf(t).slice(0, 2))}:${endOf(t).slice(3)}</span>${few ? `<span class="few">残り${slotLeft(t)}</span>` : ""}</button>`;
+      }).join("")}</div>` : ""}
+    </li>`;
   }).join("");
 }
-const openTimes = () => { renderTimes(); $("tsheet").hidden = false; $("tlist").querySelector('[aria-pressed="true"], [data-slot]')?.scrollIntoView({ block: "center" }); };
+const openTimes = () => { $("tico").innerHTML = cupSVG(st?.menu?.[0] || {}); openHour = null; renderTimes(); $("tsheet").hidden = false; $("tlist").querySelector(".hgroup.open")?.scrollIntoView({ block: "start" }); };
 document.addEventListener("click", (e) => { if (e.target.closest("[data-open-times]")) openTimes(); });
 $("tlist").addEventListener("click", (e) => {
+  const hb = e.target.closest("[data-hour]");
+  if (hb) { openHour = openHour === hb.dataset.hour ? null : hb.dataset.hour; return renderTimes(); }
   const b = e.target.closest("[data-slot]");
   if (!b) return;
   slot = b.dataset.slot;
