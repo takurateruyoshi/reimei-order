@@ -101,8 +101,6 @@ async function pollTickets() {
 
 // ---------- 操作 ----------
 $("menu").addEventListener("click", (e) => {
-  const cat = e.target.closest("[data-cat]");
-  if (cat) return $("cat" + cat.dataset.cat).scrollIntoView({ behavior: "smooth", block: "start" });
   // カードをタップするとカートに1杯入る。カートに入っているカードは「−」で1杯へる
   const row = e.target.closest("[data-code]");
   if (!row || row.disabled) return;
@@ -248,23 +246,15 @@ function render() {
   const scope = st.freeScope === "total" ? "期間中" : "1日";
   $("priceNote").textContent = st.snapshot ? "最新の売り切れ・残り数を確認しています…" : `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
 
-  // 写真付きカードを2列に並べ、上の分類タブで飛べる形（テーマパークのモバイルオーダーのような並べ方）
-  const groups = groupMenu(st.menu);
-  const priceTxt = me?.isStudent && me.freeLeft ? "学部生 無料" : yen(st.price);
-  $("menu").html = `<nav class="cats" aria-label="分類">${groups.map((g, i) => `<button type="button" data-cat="${i}">${cupSVG(g.items[0], "xs")}${esc(g.name)}</button>`).join("")}</nav>` +
-    groups.map((g, i) => `
-    <section class="cat" id="cat${i}">
-      <h3>${esc(g.name)}</h3>
-      <div class="cards">${g.items.map((m) => {
-        const n = cart[m.code] || 0;
-        return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
-          <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}</span>
-          <span class="nm"><small class="code">${esc(m.code)}</small>${esc(m.variant || m.name)}</span>
-          <span class="ft"><span class="pr">${priceTxt}</span>${stockGauge(m)}
-            ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
-        </button>`;
-      }).join("")}</div>
-    </section>`).join("");
+  // 全部の飲み物を写真付きカードで3列に並べ、1画面に収める（スクロールせずに選べる）
+  $("menu").html = `<div class="cards">${st.menu.map((m) => {
+    const n = cart[m.code] || 0;
+    return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
+      <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
+      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small>${esc(m.variant || m.name)}</span>
+      <span class="ft">${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : m.stock != null && !m.soldOut ? `<span class="left ${m.remaining <= 3 ? "low" : ""}">のこり${m.remaining}</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
+    </button>`;
+  }).join("")}</div>`;
 
   const q = cartQty();
   $("bar").hidden = !q;
