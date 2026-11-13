@@ -34,7 +34,7 @@ export async function call(action, payload = {}) {
 const STATE_KEY = "reimei-order-state";
 function saveState(d) { try { localStorage.setItem(STATE_KEY, JSON.stringify(d)); } catch {} }
 export function cachedState() { try { return JSON.parse(localStorage.getItem(STATE_KEY)); } catch { return null; } }
-// 2秒ごとに「更新番号」だけ確かめ、変わったときに onChange を呼ぶ（画面が隠れている間は止める）
+// ms ごとに「更新番号」だけ確かめ、変わったときに onChange を呼ぶ（画面が隠れている間は止める）
 export function watchRev(onChange, ms = 2000) {
   let last = null, busy = false;
   const tick = async () => {
@@ -313,3 +313,6 @@ async function demoCall(action, p) {
   }
   fail("unknown");
 }
+
+// 一度開いたページをスマホに保存（電波が弱くても開けるように）
+if ("serviceWorker" in navigator && !DEMO) navigator.serviceWorker.register("sw.js").catch(() => {});

@@ -1,5 +1,5 @@
 // 読み取りだけの負荷テスト：N台のスマホが2秒ごとに「変更あった？」を聞き続ける状態を再現（シートには何も書かない）
-const URL_ = process.argv[2], N = +process.argv[3] || 30, SEC = +process.argv[4] || 60;
+const URL_ = process.argv[2], N = +process.argv[3] || 30, SEC = +process.argv[4] || 60, EVERY = +process.argv[5] || 2000;
 const lat = []; let ok = 0, ng = 0; const errs = {};
 async function one() {
   const t = Date.now();
@@ -14,8 +14,8 @@ async function one() {
 }
 const end = Date.now() + SEC * 1000;
 await Promise.all(Array.from({ length: N }, async (_, i) => {
-  await new Promise((r) => setTimeout(r, Math.random() * 2000));
-  while (Date.now() < end) { const t = Date.now(); await one(); await new Promise((r) => setTimeout(r, Math.max(0, 2000 - (Date.now() - t)))); }
+  await new Promise((r) => setTimeout(r, Math.random() * EVERY));
+  while (Date.now() < end) { const t = Date.now(); await one(); await new Promise((r) => setTimeout(r, Math.max(0, EVERY - (Date.now() - t)))); }
 }));
 lat.sort((a, b) => a - b); const q = (p) => lat[Math.floor(lat.length * p)] ?? "-";
-console.log(JSON.stringify({ clients: N, sec: SEC, ok, ng, rate: (ok / (ok + ng) * 100).toFixed(1) + "%", p50: q(.5), p90: q(.9), p99: q(.99), max: lat.at(-1), errs }));
+console.log(JSON.stringify({ clients: N, every: EVERY, sec: SEC, ok, ng, rate: (ok / (ok + ng) * 100).toFixed(1) + "%", p50: q(.5), p90: q(.9), p99: q(.99), max: lat.at(-1), errs }));

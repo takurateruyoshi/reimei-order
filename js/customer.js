@@ -402,5 +402,6 @@ if (backToken) {
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();
 // 変更があったときだけ読み直す（念のため30秒ごとにも確認）
-watchRev(() => Promise.all([loadState(), pollTickets()]));
+// お客さんは人数が多いので5秒ごと（サーバーへの問い合わせを2秒ごとの2.5分の1に）
+watchRev(() => Promise.all([loadState(), pollTickets()]), 5000);
 setInterval(() => { loadState(); pollTickets(); }, 30000);

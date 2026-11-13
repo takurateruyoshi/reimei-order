@@ -46,8 +46,18 @@ function decodeWith(format, parse, src, w, h, crops) {
 export const decodeFrame = (src, w, h) => decodeWith("CODABAR", parseCard, src, w, h, CROPS);
 export const decodeOrderFrame = (src, w, h) => decodeWith("QR_CODE", parseOrderQR, src, w, h, [[0.15, 0.1, 0.7, 0.8], [0, 0, 1, 1]]);
 
+// 読み取りの部品（約100KB）は、カメラを使うときに初めて読み込む（最初にページを開くのを軽くするため）
+let zx = null;
+const loadZXing = () => zx ||= typeof ZXing !== "undefined" ? Promise.resolve() : new Promise((ok) => {
+  const s = document.createElement("script");
+  s.src = "https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js";
+  s.onload = ok; s.onerror = () => { zx = null; ok(); };
+  document.head.append(s);
+});
+
 function scan({ title, frame, decode }) {
   return new Promise(async (resolve) => {
+    await loadZXing();
     if (typeof ZXing === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       resolve({ error: "このスマホではカメラが使えません" });
       return;
