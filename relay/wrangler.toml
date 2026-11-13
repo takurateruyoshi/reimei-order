@@ -1,0 +1,17 @@
+# 中継サーバー（Cloudflare Workers 無料プラン）
+name = "reimei-relay"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Apps Script をウェブアプリとしてデプロイしたURL（…/exec）
+GAS_URL = "https://script.google.com/macros/s/REPLACE/exec"
+
+# 注文をまとめる係（1つだけ動かす）。無料プランは SQLite 型の Durable Object のみ使える
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]

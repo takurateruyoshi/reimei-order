@@ -1,3 +1,5 @@
 gas/
 .claude/
 .DS_Store
+relay/node_modules/
+relay/.wrangler/
