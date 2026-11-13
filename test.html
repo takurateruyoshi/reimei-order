@@ -33,6 +33,7 @@
   .verdict.good { color: var(--ok); } .verdict.mid { color: var(--dawn); } .verdict.bad { color: var(--danger); }
   table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 15px; }
   td { padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  th { text-align: left; padding: 14px 4px 4px; font-size: 13px; color: var(--muted); border-bottom: 2px solid var(--line); }
   td:last-child { text-align: right; font-family: var(--f-num); }
   pre { white-space: pre-wrap; font-size: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 </style>
@@ -40,7 +41,7 @@
 <body>
 <main class="wrap">
   <h1>通信テスト</h1>
-  <p class="lead">みんなで同じ時刻に始めて、注文画面の通信が通るかを1分間はかります。注文は入りません。</p>
+  <p class="lead">みんなで同じ時刻に始めて、<b>回線（Wi-Fi・携帯回線）</b>と<b>アプリ（注文サーバー）</b>のどちらが詰まるかを約1分はかります。注文は入りません。</p>
 
   <section id="setup">
     <label for="who">名前（だれのスマホか）</label>
@@ -77,14 +78,14 @@ const $ = (id) => document.getElementById(id);
 const DURATION = 60, EVERY = 2000, C = 2 * Math.PI * 86;
 $("arc").style.strokeDasharray = C;
 
-let net = "";
+let net_ = "";
 $("nets").onclick = (e) => {
   const b = e.target.closest("button"); if (!b) return;
-  net = b.textContent;
+  net_ = b.textContent;
   for (const x of $("nets").children) x.setAttribute("aria-pressed", x === b);
   check();
 };
-const check = () => ($("go").disabled = !($("who").value.trim() && net));
+const check = () => ($("go").disabled = !($("who").value.trim() && net_));
 $("who").oninput = check;
 try { $("who").value = localStorage.getItem("nettest-who") || ""; $("place").value = localStorage.getItem("nettest-place") || ""; } catch {}
 
@@ -113,6 +114,26 @@ const dot = (r) => {
   $("live").append(i);
 };
 
+// 回線だけの速さ：小さいファイルの往復5回（応答の速さ）と、約100KBのダウンロード（下りの速さ）
+const PROBE = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/package.json";
+const BIG = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js", BIG_BYTES = 99000;
+async function timed(url, ms = 10000) {
+  const t = performance.now();
+  try {
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), ms);
+    const r = await fetch(url + (url.includes("?") ? "&" : "?") + "nocache=" + Math.random(), { cache: "no-store", signal: ctrl.signal });
+    await r.arrayBuffer(); clearTimeout(to);
+    return r.ok ? Math.round(performance.now() - t) : null;
+  } catch { return null; }
+}
+async function netCheck() {
+  const rtts = [];
+  for (let i = 0; i < 5; i++) { const v = await timed(PROBE); rtts.push(v); dot(v == null ? { ok: false } : { ok: true, ms: v }); }
+  const ok = rtts.filter((v) => v != null).sort((a, b) => a - b);
+  const dl = await timed(BIG, 20000);
+  return { rtt: ok.length ? ok[Math.floor(ok.length / 2)] : null, lost: 5 - ok.length, mbps: dl ? (BIG_BYTES * 8) / (dl / 1000) / 1e6 : null };
+}
+
 $("go").onclick = async () => {
   try { localStorage.setItem("nettest-who", $("who").value.trim()); localStorage.setItem("nettest-place", $("place").value.trim()); } catch {}
   $("setup").hidden = true; $("run").hidden = false; $("live").textContent = "";
@@ -129,6 +150,10 @@ $("go").onclick = async () => {
     tick();
   });
 
+  // ① 回線チェック：注文サーバーを通さず、配信サーバー（CDN）までの速さだけをはかる
+  $("sub").textContent = "回線をはかっています";
+  const net = await netCheck();
+
   const results = [];
   const first = await req("state");   // 注文画面を開いたときの読み込み
   results.push({ ...first, kind: "state" }); dot(first);
@@ -144,35 +169,54 @@ $("go").onclick = async () => {
     await new Promise((x) => setTimeout(x, Math.max(0, EVERY - (Date.now() - t))));
   }
   clearInterval(timer);
-  show(results, start);
+  show(results, start, net);
 };
 
-function show(results, start) {
+// 1回の更新で使う通信量（11/13に実測：ヘッダー込みで下り約3.9KB＋上り約0.5KB）
+const KB_PER_POLL = 4.4, APP_EVERY_SEC = 5;
+function show(results, start, net) {
   const ok = results.filter((r) => r.ok), ms = ok.map((r) => r.ms).sort((a, b) => a - b);
-  const q = (p) => (ms.length ? ms[Math.min(ms.length - 1, Math.floor(ms.length * p))] : "-");
+  const q = (p) => (ms.length ? ms[Math.min(ms.length - 1, Math.floor(ms.length * p))] : null);
   const rate = Math.round((ok.length / results.length) * 100);
-  const p90 = q(0.9);
-  const v = rate >= 98 && p90 <= 3000 ? ["good", "問題なし"] : rate >= 90 && p90 <= 8000 ? ["mid", "やや遅い"] : ["bad", "厳しい"];
+  const p50 = q(0.5), p90 = q(0.9);
   const errs = {}; results.filter((r) => !r.ok).forEach((r) => (errs[r.err] = (errs[r.err] || 0) + 1));
+
+  // どちらが詰まっているか
+  const netBad = net.rtt == null || net.lost >= 2 || net.rtt > 1500 || (net.mbps != null && net.mbps < 0.1);
+  const appBad = rate < 98 || (p90 ?? 99999) > 3000;
+  const server = p50 != null && net.rtt != null ? Math.max(0, p50 - net.rtt) : null;
+  const v = !netBad && !appBad ? ["good", "問題なし"]
+    : netBad && !appBad ? ["mid", "回線が遅い（アプリは動く）"]
+    : netBad ? ["bad", "回線側がボトルネック"]
+    : ["bad", "アプリ（サーバー）側がボトルネック"];
+
+  const needKbps = (KB_PER_POLL * 8) / APP_EVERY_SEC;   // アプリ1台に必要な速さ（kbps）
   const t = new Date(start);
   const rows = [
+    ["section", "回線（Wi-Fi・携帯回線）"],
+    ["応答の速さ", net.rtt != null ? net.rtt + "ms" : "失敗"],
+    ["下りの速さ（目安）", net.mbps != null ? net.mbps.toFixed(1) + "Mbps" : "失敗"],
+    ["届かなかった回数", `${net.lost}/5回`],
+    ["section", "アプリ（注文サーバー）"],
     ["成功", `${ok.length}/${results.length}（${rate}%）`],
-    ["注文画面の読み込み", first(results)],
-    ["ふつうの待ち時間", fmt(q(0.5))],
+    ["注文画面の読み込み", results[0].ok ? fmt(results[0].ms) : "失敗"],
+    ["ふつうの待ち時間", fmt(p50)],
     ["遅いとき（10回に1回）", fmt(p90)],
-    ["一番遅い", fmt(ms.at(-1))],
+    ["サーバーでかかった時間（目安）", fmt(server)],
     ...Object.entries(errs).map(([k, n]) => [k, `${n}回`]),
+    ["section", "必要な通信量"],
+    ["アプリ1台に必要な速さ", `約${needKbps.toFixed(0)}kbps`],
+    ["この回線の余裕", net.mbps != null ? `約${Math.floor((net.mbps * 1000) / needKbps)}台分` : "-"],
   ];
   $("verdict").className = "verdict " + v[0]; $("verdict").textContent = v[1];
-  $("tbl").innerHTML = rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join("");
-  const text = [`【通信テスト】${v[1]}`, `${$("who").value.trim()}／${net}／${$("place").value.trim() || "場所未記入"}`,
+  $("tbl").innerHTML = rows.map(([a, b]) => a === "section" ? `<tr><th colspan="2">${b}</th></tr>` : `<tr><td>${a}</td><td>${b}</td></tr>`).join("");
+  const text = [`【通信テスト】${v[1]}`, `${$("who").value.trim()}／${net_}／${$("place").value.trim() || "場所未記入"}`,
     `${t.getMonth() + 1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2, "0")}開始`,
-    ...rows.map(([a, b]) => `${a}：${b}`)].join("\n");
+    ...rows.map(([a, b]) => (a === "section" ? `■${b}` : `${a}：${b}`))].join("\n");
   $("raw").textContent = text;
   $("run").hidden = true; $("result").hidden = false;
 }
 const fmt = (n) => (typeof n === "number" ? (n / 1000).toFixed(1) + "秒" : "-");
-const first = (rs) => (rs[0].ok ? fmt(rs[0].ms) : "失敗");
 
 $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText($("raw").textContent); $("copy").textContent = "コピーしました"; }

@@ -1,6 +1,6 @@
 // 一度開いたページをスマホに保存しておき、電波が弱い・圏外のときもすぐ開けるようにする。
 // 画面の部品は「保存してある物をすぐ出し、裏で最新に入れかえる」。注文のやりとり（Apps Script）は保存しない。
-const CACHE = "reimei-v1";
+const CACHE = "reimei-v2";
 const SHELL = [
   "./", "index.html", "staff.html", "pickup.html", "privacy.html",
   "css/style.css",
@@ -23,7 +23,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (!isShell(url) || url.pathname.endsWith("/test.html")) return;
+  if (!isShell(url) || url.pathname.endsWith("/test.html") || url.searchParams.has("nocache")) return;
   e.respondWith(
     caches.open(CACHE).then(async (c) => {
       const hit = await c.match(req, { ignoreSearch: url.origin === location.origin });
