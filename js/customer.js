@@ -177,9 +177,11 @@ try { pending = JSON.parse(localStorage.getItem(PENDING_KEY)); } catch {}
 function savePending() {
   try { pending ? localStorage.setItem(PENDING_KEY, JSON.stringify(pending)) : localStorage.removeItem(PENDING_KEY); } catch {}
 }
-function showSending(text) {
+const STALE = ["soldOut", "badSlot", "slotFull", "dayFull"];
+function showSending(text, cancellable = true) {
   $("sending").hidden = !text;
   if (text) $("sendingText").textContent = text;
+  $("cancelSend").hidden = !cancellable;
 }
 async function sendPending() {
   if (!pending || sending) return;
@@ -205,12 +207,18 @@ async function sendPending() {
     } else {
       pending = null;
       savePending();
+      // 画面の更新を待つあいだに売り切れ・枠がいっぱいになっていたら、最新の状況を読み込んでから選び直してもらう
+      if (STALE.includes(e.message)) {
+        showSending("最新の状況を読み込んでいます…", false);
+        await loadState().catch(() => {});
+      }
       showSending(null);
       $("sheet").hidden = false;
       renderSheet();
       $("sheetErr").textContent = errMsg(e);
       $("sheetErr").hidden = false;
-      loadState();
+      if ($("sheet").hidden) toast(errMsg(e));   // 売り切れでカートが空になったとき
+      if (!STALE.includes(e.message)) loadState();
     }
   } finally {
     sending = false;
@@ -402,6 +410,6 @@ if (backToken) {
 if (pending) sendPending();   // 送っている途中で画面を閉じても、開き直せば続きから送る
 render();
 // 変更があったときだけ読み直す（念のため30秒ごとにも確認）
-// お客さんは人数が多いので5秒ごと（サーバーへの問い合わせを2秒ごとの2.5分の1に）
-watchRev(() => Promise.all([loadState(), pollTickets()]), 5000);
+// お客さんは人数が多いので10秒ごと（その間に売り切れても、注文時にサーバーが確かめて最新を読み直す）
+watchRev(() => Promise.all([loadState(), pollTickets()]), 10000);
 setInterval(() => { loadState(); pollTickets(); }, 30000);
