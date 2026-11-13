@@ -29,6 +29,10 @@
     <span id="closedText">ただいま受付を停止しています</span>
   </div>
 
+  <nav class="modes" id="modes" hidden>
+    <button type="button" data-mode="ticket" aria-pressed="false">受け取り<b id="tcount"></b></button>
+    <button type="button" data-mode="order" aria-pressed="false">注文する</button>
+  </nav>
   <section id="tickets" class="tickets" aria-live="polite"></section>
 
   <div class="price-note" id="priceNote"></div>

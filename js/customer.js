@@ -225,6 +225,7 @@ async function sendPending() {
     tickets.unshift({ id: r.id, secret: r.secret });
     try { localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets)); } catch {}
     cart = {};
+    mode = "ticket";
     toast(`注文しました（番号 ${pad(r.no)}）`);
     scrollTo({ top: 0, behavior: "smooth" });
     await Promise.all([pollTickets(), loadMe(), loadState()]);
@@ -267,7 +268,8 @@ function fitNames() {
   document.querySelectorAll("#menu .vn, .big-items b").forEach((el) => {
     el.style.fontSize = "";
     let px = parseFloat(getComputedStyle(el).fontSize);
-    while (el.scrollWidth > el.clientWidth && px > 12) el.style.fontSize = (px -= 0.5) + "px";
+    const min = el.classList.contains("vn") ? 9 : 12;
+    while (el.scrollWidth > el.clientWidth && px > min) el.style.fontSize = (px -= 0.5) + "px";
   });
 }
 addEventListener("resize", fitNames);
@@ -296,7 +298,8 @@ function render() {
   fitNames();
 
   const anyOpen = openSlots().length > 0;
-  $("tbar").hidden = !st.open || st.snapshot;
+  $("tbar").dataset.off = !st.open || st.snapshot ? "1" : "";
+  $("tbar").hidden = $("tbar").dataset.off === "1";
   $("tbar").html = slot
     ? `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tl"><small>受け取り時間</small>${slot}〜${endOf(slot)}</span><span class="tch">変更</span>`
     : anyOpen
@@ -400,6 +403,7 @@ function qrSVG(text) {
 
 function renderTickets() {
   const active = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
+  activeCount = active.length;
   const past = orders.filter((o) => o.status === "done").slice(0, 2);
   $("tickets").html = active.map((o) => {
     const idx = STEPS.findIndex(([s]) => s === o.status);
@@ -430,7 +434,31 @@ function renderTickets() {
   for (const id of readyIds) if (!lastReady.has(id)) { try { navigator.vibrate?.([200, 100, 200]); } catch {} }
   lastReady = readyIds;
   fitNames();
+  applyMode();
 }
+
+// 受け取り待ちの注文があるときは「受け取り」と「注文する」を切り替える（どちらも1画面に収める）
+let mode = null, activeCount = 0;
+function applyMode() {
+  const has = activeCount > 0;
+  if (!has) mode = "order";
+  else if (!mode) mode = "ticket";
+  const t = mode === "ticket";
+  $("modes").hidden = !has;
+  $("tcount").textContent = has ? activeCount : "";
+  document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  $("tickets").hidden = !t;
+  for (const id of ["priceNote", "tbar", "menu"]) $(id).hidden = t || (id === "tbar" && $(id).dataset.off === "1");
+  if (t) $("bar").hidden = true;
+  else $("bar").hidden = !cartQty();
+}
+$("modes").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mode]");
+  if (!b) return;
+  mode = b.dataset.mode;
+  applyMode();
+  scrollTo({ top: 0 });
+});
 
 // Googleから戻ってきたら、カートと受け取り時間を戻して、注文の確認画面を開き直す
 const LOGIN_KEEP = "reimei-order-before-login";

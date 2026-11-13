@@ -411,10 +411,10 @@ html, body { overscroll-behavior-y: contain; }
 
 /* メニュー：写真付きカードを3列で1画面に */
 #menu.menu-book { display: block; }
-.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
 .card { position: relative; display: flex; flex-direction: column; text-align: left; padding: 0; border: 1.5px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); overflow: hidden; cursor: pointer; font: inherit; }
-.card .pic { position: relative; display: grid; place-items: center; height: 74px; background: color-mix(in srgb, var(--tint) 14%, #fff); }
-.card .pic .cup { width: 58px; height: 58px; }
+.card .pic { position: relative; display: grid; place-items: center; height: 62px; background: color-mix(in srgb, var(--tint) 14%, #fff); }
+.card .pic .cup { width: 52px; height: 52px; }
 .card .pic .code { position: absolute; left: 6px; top: 5px; font-family: var(--f-num); font-size: 10.5px; color: var(--muted); }
 .card .nm { display: flex; flex-direction: column; padding: 5px 8px 0; font-weight: 700; font-size: 13px; line-height: 1.25; min-height: 34px; }
 .card .nm small { font-size: 10.5px; color: var(--muted); font-weight: 500; min-height: 13px; }
@@ -451,3 +451,13 @@ html, body { overscroll-behavior-y: contain; }
 .tpick.on .tw { font-family: var(--f-num); font-size: 20px; } .tpick.on .tw small { font-size: 13px; color: var(--muted); }
 .slots { display: block; max-height: none; }
 .big-items b { display: block; white-space: nowrap; overflow: hidden; }
+
+/* 受け取り／注文する の切り替え */
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: #f1f2f4; border-radius: 12px; margin: 0 0 10px; }
+.modes button { border: none; background: none; border-radius: 9px; padding: 8px 0; font: 700 15px var(--f-body); color: var(--muted); cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; }
+.modes button[aria-pressed="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.modes b { min-width: 20px; height: 20px; border-radius: 99px; background: var(--dawn); color: #fff; font: 700 12px var(--f-num); display: inline-grid; place-items: center; padding: 0 5px; }
+.modes b:empty { display: none; }
+.show { min-height: calc(100dvh - 200px); }
+.tbar { padding: 6px 12px; margin-bottom: 10px; }
+.modes { margin-bottom: 8px; }
