@@ -428,3 +428,5 @@ html, body { overscroll-behavior-y: contain; }
 .card.out { cursor: default; } .card.out .pic .cup { filter: grayscale(1); opacity: .45; } .card.out .add { visibility: hidden; }
 .card .soldout { position: absolute; inset: auto 0 6px; text-align: center; font-style: normal; font-size: 12px; font-weight: 700; color: var(--danger); }
 @media (min-width: 640px) { .cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; } .card .pic { height: 110px; } }
+.card .vn { display: block; white-space: nowrap; overflow: hidden; font-size: 13px; letter-spacing: -.02em; }
+.card .nm { min-height: 0; padding-bottom: 2px; }

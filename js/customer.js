@@ -234,6 +234,16 @@ $("cancelSend").onclick = () => {
 };
 
 // ---------- 表示 ----------
+// カードの名前は1行に収める（入りきらないときだけ文字を小さくする）
+function fitNames() {
+  document.querySelectorAll("#menu .vn").forEach((el) => {
+    el.style.fontSize = "";
+    let px = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && px > 9) el.style.fontSize = (px -= 0.5) + "px";
+  });
+}
+addEventListener("resize", fitNames);
+
 function render() {
   if (!st) return;
   $("closed").hidden = st.open && st.dayLeft !== 0;
@@ -251,10 +261,11 @@ function render() {
     const n = cart[m.code] || 0;
     return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
       <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
-      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small>${esc(m.variant || m.name)}</span>
+      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn">${esc(m.variant || m.name)}</b></span>
       <span class="ft">${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : m.stock != null && !m.soldOut ? `<span class="left ${m.remaining <= 3 ? "low" : ""}">のこり${m.remaining}</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
     </button>`;
   }).join("")}</div>`;
+  fitNames();
 
   const q = cartQty();
   $("bar").hidden = !q;
