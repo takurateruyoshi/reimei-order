@@ -139,7 +139,9 @@ $("tickets").addEventListener("click", async (e) => {
 
 // 受け取り時間：今より後の枠だけ選べる
 let slot = null;
-const nowHHMM = () => new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" });
+// デモでは ?demo&now=12:00 のように時刻を決めて、受け取り時間の動きを試せる
+const NOW_TEST = DEMO && /^\d{1,2}:\d{2}$/.test(new URLSearchParams(location.search).get("now") || "") ? new URLSearchParams(location.search).get("now").padStart(5, "0") : null;
+const nowHHMM = () => NOW_TEST || new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" });
 // 締め切り（受け取り時間の◯分前）を過ぎた枠と、いっぱいの枠は選べない
 const cutoffHHMM = () => {
   const [h, m] = nowHHMM().split(":").map(Number);
@@ -148,10 +150,36 @@ const cutoffHHMM = () => {
 };
 const slotLeft = (t) => st?.slotLeft?.[t] ?? 99;
 const openSlots = () => (st?.slots || []).filter((t) => t >= cutoffHHMM() && slotLeft(t) >= Math.max(1, cartQty()));
-$("slots").addEventListener("click", (e) => {
+// 受け取り時間は一覧から選ぶ（受付中／残りわずか／満／受付終了 を表示）
+const endOf = (t) => { const [h, m] = t.split(":").map(Number), e = h * 60 + m + 15; return `${String(Math.floor(e / 60)).padStart(2, "0")}:${String(e % 60).padStart(2, "0")}`; };
+function slotStatus(t) {
+  if (t < cutoffHHMM()) return ["closed", "受付終了"];
+  const left = slotLeft(t);
+  if (left < Math.max(1, cartQty())) return ["full", "満"];
+  if (left <= 5) return ["few", `残りわずか（${left}）`];
+  return ["open", "受付中"];
+}
+function renderTimes() {
+  $("tnow").textContent = `いま ${nowHHMM()}　各時間の${st?.cutoff ?? 10}分前に締め切り`;
+  $("tlist").html = (st?.slots || []).map((t) => {
+    const [cls, label] = slotStatus(t);
+    const ok = cls === "open" || cls === "few";
+    return `<li><button type="button" class="trow ${cls}" ${ok ? `data-slot="${t}"` : "disabled"} aria-pressed="${slot === t}">
+      <span class="tw">${t}<small>〜${endOf(t)}</small></span><span class="ts">${label}</span><span class="tc" aria-hidden="true">${slot === t ? "✓" : ok ? "›" : ""}</span></button></li>`;
+  }).join("");
+}
+const openTimes = () => { renderTimes(); $("tsheet").hidden = false; $("tlist").querySelector('[aria-pressed="true"], [data-slot]')?.scrollIntoView({ block: "center" }); };
+document.addEventListener("click", (e) => { if (e.target.closest("[data-open-times]")) openTimes(); });
+$("tlist").addEventListener("click", (e) => {
   const b = e.target.closest("[data-slot]");
-  if (b) { slot = b.dataset.slot; $("sheetErr").hidden = true; renderSheet(); }
+  if (!b) return;
+  slot = b.dataset.slot;
+  $("tsheet").hidden = true;
+  $("sheetErr").hidden = true;
+  render();
 });
+$("closeT").onclick = () => ($("tsheet").hidden = true);
+$("tsheet").addEventListener("click", (e) => { if (e.target === $("tsheet")) $("tsheet").hidden = true; });
 
 async function placeOrder(asStudent) {
   if (!slot || !openSlots().includes(slot)) {
@@ -236,10 +264,10 @@ $("cancelSend").onclick = () => {
 // ---------- 表示 ----------
 // カードの名前は1行に収める（入りきらないときだけ文字を小さくする）
 function fitNames() {
-  document.querySelectorAll("#menu .vn").forEach((el) => {
+  document.querySelectorAll("#menu .vn, .big-items b").forEach((el) => {
     el.style.fontSize = "";
     let px = parseFloat(getComputedStyle(el).fontSize);
-    while (el.scrollWidth > el.clientWidth && px > 9) el.style.fontSize = (px -= 0.5) + "px";
+    while (el.scrollWidth > el.clientWidth && px > 12) el.style.fontSize = (px -= 0.5) + "px";
   });
 }
 addEventListener("resize", fitNames);
@@ -267,6 +295,15 @@ function render() {
   }).join("")}</div>`;
   fitNames();
 
+  const anyOpen = openSlots().length > 0;
+  $("tbar").hidden = !st.open || st.snapshot;
+  $("tbar").html = slot
+    ? `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tl"><small>受け取り時間</small>${slot}〜${endOf(slot)}</span><span class="tch">変更</span>`
+    : anyOpen
+      ? `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tl"><small>受け取り時間</small>まだ選んでいません</span><span class="tch">選ぶ ›</span>`
+      : `<svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tl"><small>受け取り時間</small>今日の受付は終わりました</span><span class="tch"></span>`;
+  if (!$("tsheet").hidden) renderTimes();
+
   const q = cartQty();
   $("bar").hidden = !q;
   if (q) {
@@ -289,9 +326,11 @@ function renderSheet() {
   $("lines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   const avail = openSlots();
   if (slot && !avail.includes(slot)) slot = null;
-  $("slots").html = avail.length
-    ? avail.map((t) => `<button type="button" class="slot" data-slot="${t}" aria-pressed="${slot === t}">${t}<small>のこり${slotLeft(t)}</small></button>`).join("")
-    : `<p class="err">今日の受け取り時間は終わりました</p>`;
+  $("slots").html = !avail.length
+    ? `<p class="err">今日の受け取り時間は終わりました</p>`
+    : slot
+      ? `<button type="button" class="tpick on" data-open-times><span class="tw">${slot}<small>〜${endOf(slot)}</small></span><span class="tch">変更</span></button>`
+      : `<button type="button" class="tpick" data-open-times><span>受け取り時間を選ぶ</span><span class="tch">›</span></button>`;
   const general = q * st.price;
   if (me?.isStudent) {
     const free = Math.min(me.freeLeft, q);
@@ -390,6 +429,7 @@ function renderTickets() {
   const readyIds = new Set(active.filter((o) => o.status === "ready").map((o) => o.id));
   for (const id of readyIds) if (!lastReady.has(id)) { try { navigator.vibrate?.([200, 100, 200]); } catch {} }
   lastReady = readyIds;
+  fitNames();
 }
 
 // Googleから戻ってきたら、カートと受け取り時間を戻して、注文の確認画面を開き直す
@@ -420,5 +460,5 @@ render();
 // その間に売り切れても、注文時にサーバーが確かめて最新を読み直す
 const refresh = () => Promise.all([loadState(), pollTickets()]);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
-pullToRefresh(refresh, () => !$("sheet").hidden);
+pullToRefresh(refresh, () => !$("sheet").hidden || !$("tsheet").hidden);
 

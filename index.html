@@ -32,6 +32,7 @@
   <section id="tickets" class="tickets" aria-live="polite"></section>
 
   <div class="price-note" id="priceNote"></div>
+  <button type="button" class="tbar" id="tbar" data-open-times></button>
   <section class="menu-book" id="menu" aria-label="メニュー"></section>
   <p class="loading" id="loading">メニューを読み込んでいます…</p>
 </div>
@@ -44,6 +45,13 @@
   </div>
 </div>
 
+<div class="sheet-bg" id="tsheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="tsTitle">
+    <div class="sheet-head"><h2 id="tsTitle">受け取り時間を選ぶ</h2><button class="x" id="closeT" type="button" aria-label="閉じる">×</button></div>
+    <p class="tnow" id="tnow"></p>
+    <ul class="tlist" id="tlist"></ul>
+  </div>
+</div>
 <div class="sheet-bg" id="sheet" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
     <div class="sheet-head"><h2 id="sheetTitle">注文の確認</h2><button class="x" id="closeSheet" type="button" aria-label="閉じる">×</button></div>
