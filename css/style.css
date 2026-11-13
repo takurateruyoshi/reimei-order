@@ -408,3 +408,30 @@ html, body { overscroll-behavior-y: contain; }
 .ptr.spin { transform: translate(-50%, 40px) !important; opacity: 1 !important; }
 .ptr.spin svg { stroke: var(--dawn); animation: ptrspin .8s linear infinite; }
 @keyframes ptrspin { to { transform: rotate(360deg); } }
+
+/* メニュー：分類タブ＋写真付きカード2列 */
+.cats { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; margin: 0 -2px; background: var(--bg); scrollbar-width: none; }
+.cats::-webkit-scrollbar { display: none; }
+.cats button { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 99px; padding: 6px 14px 6px 8px; font: 700 14px var(--f-body); cursor: pointer; }
+.cats .cup.xs { width: 22px; height: 22px; }
+.cat { scroll-margin-top: 60px; padding-top: 8px; }
+.cat h3 { font-family: var(--f-display); font-weight: 400; font-size: 20px; margin: 10px 0 10px; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 640px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.card { position: relative; display: flex; flex-direction: column; text-align: left; padding: 0; border: 1.5px solid var(--line); border-radius: 16px; background: var(--bg); color: var(--ink); overflow: hidden; cursor: pointer; font: inherit; }
+.card .pic { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; background: color-mix(in srgb, var(--tint) 14%, #fff); }
+.card .pic .cup { width: 68%; height: 82%; }
+.card .nm { display: flex; flex-direction: column; padding: 8px 10px 0; font-weight: 700; font-size: 15px; line-height: 1.3; }
+.card .nm .code { font-family: var(--f-num); font-size: 11px; color: var(--muted); font-weight: 500; }
+.card .ft { display: flex; align-items: center; gap: 6px; padding: 6px 10px 10px; min-height: 44px; }
+.card .pr { font-size: 13px; color: var(--muted); font-weight: 700; flex: 1; }
+.card .ft .gauge { position: absolute; left: 10px; right: 10px; top: 8px; width: auto; }
+.card .add, .card .dec { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; font-weight: 700; flex: none; }
+.card .add { background: var(--dawn); color: #fff; }
+.card .dec { background: var(--bg); color: var(--dawn); border: 2px solid var(--dawn); }
+.card.on { border-color: var(--dawn); box-shadow: 0 0 0 1.5px var(--dawn) inset; }
+.card .cnt { position: absolute; top: 8px; right: 8px; background: var(--dawn); color: #fff; font-family: var(--f-num); font-size: 15px; border-radius: 99px; padding: 2px 10px; }
+.card.out { cursor: default; } .card.out .pic { filter: grayscale(1); opacity: .5; } .card.out .add { display: none; }
+.card .soldout { position: absolute; inset: auto 0 10px; text-align: center; font-style: normal; font-weight: 700; color: var(--danger); }
+.card:disabled:not(.out) { cursor: default; }
+#menu.menu-book { display: block; }

@@ -101,7 +101,9 @@ async function pollTickets() {
 
 // ---------- 操作 ----------
 $("menu").addEventListener("click", (e) => {
-  // 行をタップするとカートに1杯入る。カートに入っている行は、左の番号が「−」になり、そこを押すと1杯へる
+  const cat = e.target.closest("[data-cat]");
+  if (cat) return $("cat" + cat.dataset.cat).scrollIntoView({ behavior: "smooth", block: "start" });
+  // カードをタップするとカートに1杯入る。カートに入っているカードは「−」で1杯へる
   const row = e.target.closest("[data-code]");
   if (!row || row.disabled) return;
   const code = row.dataset.code;
@@ -246,19 +248,23 @@ function render() {
   const scope = st.freeScope === "total" ? "期間中" : "1日";
   $("priceNote").textContent = st.snapshot ? "最新の売り切れ・残り数を確認しています…" : `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
 
-  $("menu").html = groupMenu(st.menu).map((g) => `
-    <article class="dish">
-      <div class="dish-head">${cupSVG(g.items[0])}<h3>${esc(g.name)}</h3></div>
-      <div class="rows">${g.items.map((m) => {
+  // 写真付きカードを2列に並べ、上の分類タブで飛べる形（テーマパークのモバイルオーダーのような並べ方）
+  const groups = groupMenu(st.menu);
+  const priceTxt = me?.isStudent && me.freeLeft ? "学部生 無料" : yen(st.price);
+  $("menu").html = `<nav class="cats" aria-label="分類">${groups.map((g, i) => `<button type="button" data-cat="${i}">${cupSVG(g.items[0], "xs")}${esc(g.name)}</button>`).join("")}</nav>` +
+    groups.map((g, i) => `
+    <section class="cat" id="cat${i}">
+      <h3>${esc(g.name)}</h3>
+      <div class="cards">${g.items.map((m) => {
         const n = cart[m.code] || 0;
-        return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
-          ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
-          ${cupSVG(m, "sm")}
-          <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
-          ${n ? `<span class="qty">×${n}</span>` : ""}
+        return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
+          <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}</span>
+          <span class="nm"><small class="code">${esc(m.code)}</small>${esc(m.variant || m.name)}</span>
+          <span class="ft"><span class="pr">${priceTxt}</span>${stockGauge(m)}
+            ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
         </button>`;
       }).join("")}</div>
-    </article>`).join("");
+    </section>`).join("");
 
   const q = cartQty();
   $("bar").hidden = !q;
