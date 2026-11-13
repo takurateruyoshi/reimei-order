@@ -533,3 +533,25 @@ html, body { overscroll-behavior-y: contain; }
 .tr2.full { opacity: .4; pointer-events: none; }
 .tr2.full .sold { color: var(--muted); background: #eceef1; }
 .hgroup.none .hhead { opacity: .45; }
+
+/* 受け取り画面：注文番号は小さく。複数あるときは横にめくる */
+.show-top { flex-direction: column; align-items: center; gap: 0; }
+.show-top .show-no, .show-no { font-family: var(--f-body); font-size: 13px; font-weight: 700; color: var(--muted); line-height: 1.4; }
+.show-top .show-slot { font-size: 34px; }
+.tickets.many { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; scrollbar-width: none; }
+.tickets.many::-webkit-scrollbar { display: none; }
+.tickets.many .show { flex: 0 0 100%; scroll-snap-align: center; }
+.show { min-height: calc(100dvh - 190px); padding-bottom: 64px; border-bottom: none; }
+/* 左下：注文に戻る／右下：受け取り画面へ */
+.fab { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 99px; padding: 12px 16px; font: 700 15px var(--f-body); cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.fab.back { left: 16px; background: var(--bg); color: var(--ink); border: 1.5px solid var(--line); }
+.fab.fwd { right: 16px; background: var(--ink); color: #fff; }
+.fab.fwd.up { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+.fab b { min-width: 20px; height: 20px; border-radius: 99px; background: var(--dawn); color: #fff; font: 700 12px var(--f-num); display: inline-grid; place-items: center; padding: 0 5px; }
+.fab b:empty { display: none; }
+.tickets.many { flex-direction: row; align-items: flex-start; max-width: 100%; }
+.tickets.many .show { min-width: 0; box-sizing: border-box; }
+.tickets { overflow-x: hidden; }
+.tickets.many { overflow-x: auto; }
+.top { min-width: 0; } .top .who { min-width: 0; max-width: 62%; overflow: hidden; } .top .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

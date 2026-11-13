@@ -347,6 +347,7 @@ function fitNames() {
   });
 }
 addEventListener("resize", fitNames);
+document.fonts?.ready.then(fitNames);   // 字体が届いたあとにもう一度合わせる
 
 function render() {
   if (!st) return;
@@ -494,7 +495,7 @@ function renderTickets() {
   const active = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
   activeCount = active.length;
   const past = orders.filter((o) => o.status === "done").slice(0, 2);
-  $("tickets").html = active.map((o) => {
+  $("tickets").html = active.map((o, i) => {
     const idx = STEPS.findIndex(([s]) => s === o.status);
     const ready = o.status === "ready";
     const need = [
@@ -504,8 +505,8 @@ function renderTickets() {
     return `<article class="show ${ready ? "ready" : ""}">
       <p class="show-hint">この画面を店員さんに見せてね</p>
       <div class="show-top">
-        <div class="show-no"><small>注文番号</small>${pad(o.no)}</div>
         ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
+        <div class="show-no">注文番号 ${pad(o.no)}${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</div>
       </div>
       <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="show-foot">
@@ -517,7 +518,8 @@ function renderTickets() {
       </div>
       ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">注文を取り消す</button>` : ""}
     </article>`;
-  }).join("") + past.map((o) => `<p class="past">${pad(o.no)}　受け取り済み</p>`).join("");
+  }).join("");
+  $("tickets").classList.toggle("many", active.length > 1);
 
   const readyIds = new Set(active.filter((o) => o.status === "ready").map((o) => o.id));
   for (const id of readyIds) if (!lastReady.has(id)) { try { navigator.vibrate?.([200, 100, 200]); } catch {} }
@@ -530,26 +532,21 @@ function renderTickets() {
 let mode = null, activeCount = 0;
 function applyMode() {
   const has = activeCount > 0;
-  if (!has) mode = "order";
-  else if (!mode) mode = "ticket";
-  const t = mode === "ticket";
-  $("modes").hidden = !has;
+  const t = has && (mode || "ticket") === "ticket";   // 受け取り待ちがあれば、開いたときは受け取り画面から
   $("tcount").textContent = has ? activeCount : "";
-  document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
   $("tickets").hidden = !t;
   const step = null;   // 手順は注文の確認シートの中で進める
   renderGate(step);
   const off = t || !!step;
   for (const id of ["priceNote", "tbar", "menu"]) $(id).hidden = off || (id === "tbar" && $(id).dataset.off === "1");
   $("bar").hidden = off || !cartQty();
+  // 左下の矢印で注文に戻る／右下のボタンで受け取り画面へ
+  $("navBack").hidden = !t;
+  $("navTicket").hidden = t || !has;
+  $("navTicket").classList.toggle("up", !$("bar").hidden);
 }
-$("modes").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-mode]");
-  if (!b) return;
-  mode = b.dataset.mode;
-  applyMode();
-  scrollTo({ top: 0 });
-});
+$("navBack").onclick = () => { mode = "order"; applyMode(); scrollTo({ top: 0 }); };
+$("navTicket").onclick = () => { mode = "ticket"; applyMode(); scrollTo({ top: 0 }); };
 
 // Googleから戻ってきたら、カートと受け取り時間を戻して、注文の確認画面を開き直す
 const LOGIN_KEEP = "reimei-order-before-login";

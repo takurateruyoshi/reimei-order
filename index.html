@@ -29,10 +29,6 @@
     <span id="closedText">ただいま受付を停止しています</span>
   </div>
 
-  <nav class="modes" id="modes" hidden>
-    <button type="button" data-mode="ticket" aria-pressed="false">受け取り<b id="tcount"></b></button>
-    <button type="button" data-mode="order" aria-pressed="false">注文する</button>
-  </nav>
   <section id="tickets" class="tickets" aria-live="polite"></section>
 
   <section class="gate" id="gate" hidden></section>
@@ -42,6 +38,8 @@
   <p class="loading" id="loading">メニューを読み込んでいます…</p>
 </div>
 
+<button type="button" class="fab back" id="navBack" hidden aria-label="注文に戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>注文する</span></button>
+<button type="button" class="fab fwd" id="navTicket" hidden aria-label="受け取り画面へ"><span>受け取り</span><b id="tcount"></b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
 <div class="bar" id="bar" hidden>
   <div class="in">
     <div class="cart-cups" id="cartCups"></div>
