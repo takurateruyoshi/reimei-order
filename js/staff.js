@@ -1,7 +1,7 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
-import { call, newId, watchRev, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { scanOrderQR, scanStudentCard } from "./scan.js";
-import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON } from "./ui.js";
+import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 $("shop").textContent = SHOP_NAME;
@@ -11,7 +11,7 @@ if (SHEET_URL) { $("sheetLink").href = SHEET_URL; $("sheetLink").hidden = false;
 let key = savedStaffKey();
 let st = null, orders = [], tab = "kitchen";
 let counter = { cart: {}, sid: "", freeLeft: null };
-let timer = null, lastSnap = "";
+let lastSnap = "";
 
 const toast = (msg) => {
   const t = $("toast");
@@ -56,12 +56,13 @@ async function enter() {
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     apply(r);
     $("main").classList.remove("loading");
-    watchRev(refresh);
-    timer = setInterval(refresh, 10000);
-    // パソコンで書いた注文の整理とチェックは、一覧とは別に後ろで行う
+    // 最新にするのは「下に引っぱったとき」と「アプリに戻ってきたとき」だけ。
+    // パソコンで書いた注文の整理とチェック（maintain）も、そのときに一覧とは別に行う
     const maintain = () => call("maintain", { staffKey: key }).catch(() => {});
     maintain();
-    setInterval(maintain, 10000);
+    const pull = () => Promise.all([refresh(), maintain()]);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
+    pullToRefresh(pull, () => !$("cSheet").hidden || !!document.querySelector(".scan-bg"));
   } catch (e) {
     if (e.network) {   // 電波が無いだけなら、読み込み中のまま待って送り直す
       $("netOff").hidden = false;
@@ -109,7 +110,7 @@ async function refresh() {
     $("netOff").hidden = true;
   } catch (e) {
     if (e.network) $("netOff").hidden = false;
-    if (e.message === "notStaff") { clearInterval(timer); saveStaffKey(null); location.reload(); }
+    if (e.message === "notStaff") { saveStaffKey(null); location.reload(); }
   }
 }
 async function act(payload, msg) {

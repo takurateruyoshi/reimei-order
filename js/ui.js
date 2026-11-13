@@ -95,3 +95,36 @@ Object.defineProperty(HTMLElement.prototype, "html", {
   get() { return this.innerHTML; },
   configurable: true,
 });
+
+// 画面の一番上で下に引っぱると onRefresh を呼ぶ。blocked() が true の間（シートやカメラを開いている間）は反応しない
+export function pullToRefresh(onRefresh, blocked = () => false) {
+  const el = document.getElementById("ptr"), PULL = 70;
+  let y0 = null, dy = 0, busy = false;
+  const set = (d) => {
+    el.style.transform = `translate(-50%, ${Math.min(d, PULL + 20) - 50}px) rotate(${d * 4}deg)`;
+    el.style.opacity = Math.min(1, d / PULL);
+    el.classList.toggle("ready", d >= PULL);
+  };
+  addEventListener("touchstart", (e) => {
+    if (busy || scrollY > 0 || blocked() || e.touches.length !== 1) return;
+    y0 = e.touches[0].clientY; dy = 0;
+  }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    dy = Math.max(0, (e.touches[0].clientY - y0) * 0.5);
+    if (scrollY > 0) { y0 = null; dy = 0; }
+    set(dy);
+  }, { passive: true });
+  addEventListener("touchend", async () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (dy < PULL) { el.style.transition = "transform .2s, opacity .2s"; set(0); setTimeout(() => (el.style.transition = ""), 200); return; }
+    busy = true;
+    el.classList.add("spin");
+    try { await onRefresh(); } catch {}
+    el.classList.remove("spin", "ready");
+    el.style.transition = "transform .2s, opacity .2s"; set(0);
+    setTimeout(() => (el.style.transition = ""), 200);
+    busy = false;
+  });
+}
