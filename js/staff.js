@@ -1,7 +1,7 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
 import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { scanOrderQR, scanStudentCard } from "./scan.js";
-import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh } from "./ui.js";
+import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 $("shop").textContent = SHOP_NAME;
@@ -325,19 +325,16 @@ function render() {
     : `<div class="empty">なし</div>`;
 
   // 店頭で注文
-  $("cCodes").html = groupMenu(st.menu).map((g) => `
-    <article class="dish">
-      <div class="dish-head">${cupSVG(g.items[0])}<h3>${esc(g.name)}</h3></div>
-      <div class="rows">${g.items.map((m) => {
-        const n = counter.cart[m.code] || 0;
-        return `<button type="button" class="item-row ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" ${m.soldOut ? "disabled" : ""}>
-          ${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : `<span class="code">${esc(m.code)}</span>`}
-          ${cupSVG(m, "sm")}
-          <span class="vname">${esc(m.variant || m.name)}${m.soldOut ? `<em>売り切れ</em>` : stockGauge(m)}</span>
-          ${n ? `<span class="qty">×${n}</span>` : ""}
-        </button>`;
-      }).join("")}</div>
-    </article>`).join("");
+  // お客さん画面と同じカード（3列）
+  $("cCodes").html = `<div class="cards">${st.menu.map((m) => {
+    const n = counter.cart[m.code] || 0;
+    return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut ? "disabled" : ""}>
+      <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
+      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn">${esc(m.variant || m.name)}</b></span>
+      <span class="ft">${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : m.stock != null && !m.soldOut ? `<span class="left ${m.remaining <= 3 ? "low" : ""}">のこり${m.remaining}</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
+    </button>`;
+  }).join("")}</div>`;
+  fitText("#cCodes .vn", 9);
   // 下のバー（店頭で注文のタブでカートに何か入っているときだけ）
   const cl = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
   const cq = cl.reduce((a, l) => a + l.qty, 0);

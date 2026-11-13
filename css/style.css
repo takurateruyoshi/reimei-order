@@ -555,3 +555,4 @@ html, body { overscroll-behavior-y: contain; }
 .tickets { overflow-x: hidden; }
 .tickets.many { overflow-x: auto; }
 .top { min-width: 0; } .top .who { min-width: 0; max-width: 62%; overflow: hidden; } .top .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#cCodes.menu-book { display: block; }

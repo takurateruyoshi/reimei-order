@@ -128,3 +128,12 @@ export function pullToRefresh(onRefresh, blocked = () => false) {
     busy = false;
   });
 }
+
+// 1行に収まらない文字だけ小さくする
+export function fitText(selector, min = 9) {
+  document.querySelectorAll(selector).forEach((el) => {
+    el.style.fontSize = "";
+    let px = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > el.clientWidth && px > min) el.style.fontSize = (px -= 0.5) + "px";
+  });
+}
