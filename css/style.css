@@ -534,10 +534,11 @@ html, body { overscroll-behavior-y: contain; }
 .tr2.full .sold { color: var(--muted); background: #eceef1; }
 .hgroup.none .hhead { opacity: .45; }
 
-/* 受け取り画面：注文番号は小さく。複数あるときは横にめくる */
-.show-top { flex-direction: column; align-items: center; gap: 0; }
-.show-top .show-no, .show-no { font-family: var(--f-body); font-size: 13px; font-weight: 700; color: var(--muted); line-height: 1.4; }
-.show-top .show-slot { font-size: 34px; }
+/* 受け取り画面：呼び出し番号と受け取り時間を横に並べて大きく。複数あるときは横にめくる */
+.show-top { flex-direction: row; align-items: flex-end; justify-content: center; gap: 32px; }
+.show-top .show-no, .show-no { font-family: var(--f-num); font-size: 56px; font-weight: 500; color: var(--ink); line-height: 1; }
+.show-no small, .show-slot small { font-weight: 700; }
+.show-top .show-slot { font-size: 40px; }
 .tickets.many { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; scrollbar-width: none; }
 .tickets.many::-webkit-scrollbar { display: none; }
 .tickets.many .show { flex: 0 0 100%; scroll-snap-align: center; }
