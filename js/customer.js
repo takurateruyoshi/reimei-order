@@ -17,7 +17,10 @@ const ERR = {
   dayFull: "本日のモバイルオーダーは売り切れました",
   studentOnly: "モバイルオーダーは学生専用です。店頭の列にお並びください",
   auth: "もう一度ログインしてください",
+  usedFree: "モバイルオーダーは学部生の無料の1杯だけです。2杯目からは店頭で注文してください",
 };
+// モバイルオーダーで頼める杯数：学部生の無料の杯数まで（2杯目からは店頭）
+const mobileCap = () => st.allowGeneral && !me?.isStudent ? st.maxQty : Math.min(st.maxQty, me?.isStudent ? me.freeLeft : (st.freeLimit || st.maxQty));
 const errMsg = (e) => ERR[e?.message] || "うまくいきませんでした。もう一度試してください";
 
 $("shop").textContent = SHOP_NAME;
@@ -111,7 +114,7 @@ $("menu").addEventListener("click", (e) => {
     return render();
   }
   const m = byCode(code);
-  if (cartQty() >= st.maxQty) return toast(`1回の注文は${st.maxQty}杯までです`);
+  if (cartQty() >= mobileCap()) return toast(me?.isStudent && !me.freeLeft ? ERR.usedFree : mobileCap() < st.maxQty ? `モバイルオーダーは${mobileCap()}杯までです。2杯目からは店頭で` : `1回の注文は${st.maxQty}杯までです`);
   if (m.remaining !== null && (cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
   cart[code] = (cart[code] || 0) + 1;
   render();
@@ -290,8 +293,9 @@ async function sendPending() {
     tickets.unshift({ id: r.id, secret: r.secret });
     try { localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets)); } catch {}
     cart = {};
+    if (me?.isStudent) me = { ...me, freeLeft: Math.max(0, me.freeLeft - (r.free || 0)) };
     mode = "ticket";
-    toast(`注文しました（番号 ${pad(r.no)}）`);
+    toast(`注文しました（呼び出し番号 ${pad(r.no)}）`);
     scrollTo({ top: 0, behavior: "smooth" });
     await Promise.all([pollTickets(), loadMe(), loadState()]);
   } catch (e) {
@@ -361,7 +365,7 @@ function render() {
     $("out").onclick = () => { token = null; me = null; saveToken(null); saveCard(null); guest = false; try { sessionStorage.removeItem("reimei-order-guest"); } catch {} render(); };
   }
   const scope = st.freeScope === "total" ? "期間中" : "1日";
-  $("priceNote").textContent = st.snapshot ? "最新の売り切れ・残り数を確認しています…" : `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "");
+  $("priceNote").textContent = st.snapshot ? "最新の売り切れ・残り数を確認しています…" : st.allowGeneral ? `1杯 ${yen(st.price)}` + (st.freeLimit ? `　学部生は${scope}${st.freeLimit}杯無料` : "") : `学部生は${scope}${st.freeLimit}杯無料（2杯目からは店頭で）`;
 
   // 全部の飲み物を写真付きカードで3列に並べ、1画面に収める（スクロールせずに選べる）
   $("menu").html = `<div class="cards">${st.menu.map((m) => {
@@ -425,6 +429,10 @@ function renderSheet() {
     $("pick").html = `<div class="pay-sum"><div class="tagp paid">${COIN_ICON}一般</div><div class="big">${yen(general)}</div><small>受け取りのとき現金で払ってください</small></div>
       <button class="go wide" type="button" id="confirm">この内容で注文する</button>`;
     $("confirm").onclick = () => placeOrder(false);
+    return;
+  }
+  if (me?.isStudent && q > me.freeLeft) {
+    $("pick").html = `<div class="pay-sum"><div class="tagp paid">${COIN_ICON}店頭で注文</div><small>${me.freeLeft ? `モバイルオーダーは${me.freeLeft}杯までです。杯数を減らしてください` : ERR.usedFree}</small></div>`;
     return;
   }
   if (me?.isStudent) {
@@ -508,12 +516,11 @@ function renderTickets() {
       <p class="show-hint">この画面を店員さんに見せてね</p>
       <div class="show-top">
         ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
-        <div class="show-no">注文番号 ${pad(o.no)}${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</div>
+        <div class="show-no"><small>呼び出し番号${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</small>${pad(o.no)}</div>
       </div>
       <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="show-foot">
         <div class="show-info">
-          ${o.studentId ? `<div class="sid"><small>学籍番号（この番号で呼びます）</small>${esc(o.studentId)}</div>` : ""}
           <div class="needs">${need}</div>
         </div>
         <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>

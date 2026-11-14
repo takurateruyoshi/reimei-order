@@ -140,7 +140,7 @@ $("colNew").addEventListener("click", async (e) => {
   render();
   try {
     const r = await call("pickup", { staffKey: key, id });
-    toast(r.result === "already" ? "もう受け渡し済みでした" : `${o?.studentId || "No." + pad(o?.no)} 受け渡し完了`);
+    toast(r.result === "already" ? "もう受け渡し済みでした" : `${pad(o?.no)}番 受け渡し完了`);
   } catch {
     if (o) o.status = "new";
     toast("記録できませんでした。もう一度押してください");
@@ -257,7 +257,7 @@ async function counterOrder(type) {
     counter.freeLeft = null;
     $("cSid").value = "";
     $("cDone").hidden = false;
-    $("cDone").html = `<div class="show-no"><small>注文番号</small>${pad(r.no)}</div>${r.free ? `<div class="need-big id">無料 ${r.free}杯（学生証を確認）</div>` : ""}${r.total ? `<div class="need-big cash">${yen(r.total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
+    $("cDone").html = `<div class="show-no"><small>呼び出し番号</small>${pad(r.no)}</div>${r.free ? `<div class="need-big id">無料 ${r.free}杯（学生証を確認）</div>` : ""}${r.total ? `<div class="need-big cash">${yen(r.total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
     $("cAgain").onclick = cClose;
     render();
     lastSnap = "";
@@ -302,7 +302,7 @@ function card(o, btn) {
     <div class="opic">${o.lines.map((l) => `<span class="ocup">${cupSVG({ ...l, color: byCode(l.code)?.color })}${l.qty > 1 ? `<b>×${l.qty}</b>` : ""}</span>`).join("")}${o.byStaff ? `<small class="otag">店頭</small>` : ""}</div>
     ${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
     <div class="obody">
-      <div class="ono">${o.studentId ? `${esc(o.studentId)}<small>No.${pad(o.no)}</small>` : `No.${pad(o.no)}`}</div>
+      <div class="ono">${pad(o.no)}</div>
       <ul class="olist">${o.lines.map((l) => `<li><span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
       <div class="oneed">${need(o)}</div>
       ${ageBar(o)}

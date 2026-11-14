@@ -290,6 +290,7 @@ async function demoCall(action, p) {
       if (!byStaff && totalQty > c.maxQty) fail("tooMany");
       if (!byStaff && !slots.includes(p.slot)) fail("badSlot");
       if (!byStaff && type !== "student" && !cap.allowGeneral) fail("studentOnly");
+      if (!byStaff && type === "student" && !cap.allowGeneral && totalQty > free) fail("usedFree");
       if (!byStaff && cups(() => true) + totalQty > cap.dayCap) fail("dayFull");
       if (!byStaff && cups((r) => r.slot === p.slot) + totalQty > cap.slotCap) fail("slotFull");
       for (const i of items) {
