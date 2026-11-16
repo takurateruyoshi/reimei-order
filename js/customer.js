@@ -285,8 +285,11 @@ async function sendPending() {
   clearTimeout(retryTimer);
   $("sheet").hidden = true;
   showSending("スプレッドシートに登録しています…");
+  // 注文が集中しているときは中継で順番待ちになる（最大で数分）。待っていることを伝える
+  const slowTimer = setTimeout(() => showSending("混み合っています。順番に登録しています（そのままお待ちください）"), 12000);
   try {
     const r = await call("order", pending);
+    clearTimeout(slowTimer);
     pending = null;
     savePending();
     showSending(null);
@@ -299,6 +302,7 @@ async function sendPending() {
     scrollTo({ top: 0, behavior: "smooth" });
     await Promise.all([pollTickets(), loadMe(), loadState()]);
   } catch (e) {
+    clearTimeout(slowTimer);
     if (e.network) {
       showSending(e.busy
         ? "混み合っています。順番に送り直しています（注文はまだ完了していません）"

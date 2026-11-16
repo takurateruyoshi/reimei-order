@@ -31,13 +31,18 @@ export async function call(action, payload = {}) {
 
 // 1回送る。まず中継サーバーへ。中継に届かない・返事がおかしいときは、そのまま Apps Script に直接送り、
 // しばらく（2分）は中継を使わない。注文には番号（clientId）が付いているので、両方に届いても二重にはならない
+// 注文は中継で順番待ちになるので、長めに待つ（実測：600件同時で最後が約2.8分。1000件なら約4.7分）。
+// 時間切れ＝中継は動いているが混んでいるだけ。このときは直接には送らず、中継で送り直す
+// （直接にも送ると、シートの順番待ちを中継と取り合って、かえって遅くなる）
+const RELAY_WAIT = { order: 360000 };
 let relayOffUntil = 0;
 async function post(action, payload) {
   const body = JSON.stringify({ action, ...payload });
   if (RELAY_URL && Date.now() > relayOffUntil) {
     try {
-      return await send(RELAY_URL, body, 30000);
-    } catch {
+      return await send(RELAY_URL, body, RELAY_WAIT[action] || 30000);
+    } catch (e) {
+      if (e.name === "AbortError" && RELAY_WAIT[action]) return { error: "混み合っています（lock）" };
       const d = await send(API_URL, body, 30000);   // ここでも届かなければ電波がない（中継のせいではない）
       relayOffUntil = Date.now() + 120000;
       return d;
