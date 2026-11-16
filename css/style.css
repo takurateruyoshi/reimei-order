@@ -581,3 +581,16 @@ html, body { overscroll-behavior-y: contain; }
 .ocard2.bad { border-color: var(--danger); }
 .ocard2 .bad-why { font-size: 11.5px; font-weight: 700; color: var(--danger); background: #fdecea; padding: 3px 8px; }
 .ocard2 .age { flex: none; height: 4px; }
+
+/* ---- パソコン（1100px以上）：左に受け渡し、右に店頭で注文 ---- */
+.queue-info { background: var(--surface); border: 1.5px dashed var(--line); border-radius: 10px; padding: 8px 12px; font-weight: 700; text-align: center; }
+body.pc .wrap.wide { max-width: 1600px; padding-inline: 24px; }
+body.pc #main { display: grid !important; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px 28px; align-items: start; }
+body.pc #main > .net-off, body.pc #main > .queue-info, body.pc #main > #state, body.pc #main > .tabs, body.pc #main > [data-panel="admin"] { grid-column: 1 / -1; }
+body.pc .tabs [data-tab="counter"] { display: none; }
+body.pc [data-panel="counter"] { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+body.pc #cSheet { position: static; inset: auto; background: none; display: block; z-index: auto; }
+body.pc #cSheet .sheet { max-width: none; border-radius: 16px; border: 1.5px solid var(--line); max-height: none; padding: 14px 16px; }
+body.pc #cClose { display: none; }
+body.pc .ocards { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.ocard2 .ono small { display: block; }

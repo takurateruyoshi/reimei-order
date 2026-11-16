@@ -13,6 +13,20 @@ let st = null, orders = [], tab = "kitchen";
 let counter = { cart: {}, sid: "", freeLeft: null };
 let lastSnap = "";
 
+// パソコン（横幅1100px以上）では「受け渡し」と「店頭で注文」を左右に並べて同時に出す
+const pcMQ = matchMedia("(min-width: 1100px)");
+const isPC = () => pcMQ.matches;
+pcMQ.addEventListener("change", () => render());
+
+// 通信できないあいだの店頭の注文・受け渡しは、この端末に貯めておき、つながったら順に送る。
+// 店頭の注文には「オ1, オ2…」の仮番号を付けてお客さんに伝える（つながったあと本番号と並べて出す）
+const Q_KEY = "reimei-staff-queue", SEQ_KEY = "reimei-staff-offseq", LABEL_KEY = "reimei-staff-labels", LAST_KEY = "reimei-staff-last";
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+let queue = load(Q_KEY, []);          // { kind: "order", label, payload, order } | { kind: "pickup", id }
+let labels = load(LABEL_KEY, {});     // 本番の注文ID → 仮番号
+const saveQueue = () => save(Q_KEY, queue);
+
 const toast = (msg) => {
   const t = $("toast");
   t.textContent = msg;
@@ -56,6 +70,7 @@ async function enter() {
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     apply(r);
     $("main").classList.remove("loading");
+    startAuto();
     // 最新にするのは「下に引っぱったとき」と「アプリに戻ってきたとき」だけ。
     // パソコンで書いた注文の整理とチェック（maintain）も、そのときに一覧とは別に行う
     const maintain = () => call("maintain", { staffKey: key }).catch(() => {});
@@ -64,9 +79,16 @@ async function enter() {
     document.addEventListener("visibilitychange", () => { if (!document.hidden) pull(); });
     pullToRefresh(pull, () => !$("cSheet").hidden || !!document.querySelector(".scan-bg"));
   } catch (e) {
-    if (e.network) {   // 電波が無いだけなら、読み込み中のまま待って送り直す
+    if (e.network) {   // 電波が無いだけなら、前回の一覧で始めて、つながるまで送り直す
       $("netOff").hidden = false;
-      setTimeout(enter, 3000);
+      const last = load(LAST_KEY, null);
+      if (last && !ordersLoaded) {
+        ordersLoaded = true;
+        apply(last);
+        $("main").classList.remove("loading");
+        startAuto();
+      }
+      if (!last) setTimeout(enter, 3000);
       return;
     }
     saveStaffKey(null);
@@ -100,12 +122,14 @@ function apply(r) {
   const snap = JSON.stringify(r);
   if (snap === lastSnap) return;
   lastSnap = snap;
+  save(LAST_KEY, r);
   st = r.state;
   orders = r.orders.sort((a, b) => a.no - b.no);
   render();
 }
 async function refresh() {
   try {
+    await flushQueue();
     apply(await call("staffList", { staffKey: key }));
     $("netOff").hidden = true;
   } catch (e) {
@@ -135,13 +159,22 @@ $("colNew").addEventListener("click", async (e) => {
   }
   armed = null;
   clearTimeout(armTimer);
+  // まだ送れていない店頭の注文（仮番号）は、この端末の中で受け渡し済みにする
+  const lq = queue.find((x) => x.kind === "order" && "local:" + x.label === id);
+  if (lq) { lq.order.status = "done"; saveQueue(); toast(`${lq.label} 受け渡し完了（つながったら記録します）`); return render(); }
   const o = orders.find((x) => x.id === id);
   if (o) o.status = "done";   // 先に一覧から消しておく
   render();
   try {
     const r = await call("pickup", { staffKey: key, id });
-    toast(r.result === "already" ? "もう受け渡し済みでした" : `${pad(o?.no)}番 受け渡し完了`);
-  } catch {
+    toast(r.result === "already" ? "もう受け渡し済みでした" : `${numLabel(o)} 受け渡し完了`);
+  } catch (e) {
+    if (e.network) {
+      queue.push({ kind: "pickup", id });
+      saveQueue();
+      toast(`${numLabel(o)} 受け渡し完了（つながったら記録します）`);
+      return render();
+    }
     if (o) o.status = "new";
     toast("記録できませんでした。もう一度押してください");
   }
@@ -204,7 +237,7 @@ $("cCodes").addEventListener("click", (e) => {
 });
 // 店頭の注文：下のバー →「注文へ」→ 学部生か一般かを選ぶ。学部生は学籍番号が必要（学生証の読み取りか手入力）
 const cOpen = () => { $("cErr").hidden = true; $("cDone").hidden = true; $("cSheet").hidden = false; renderCounterSheet(); };
-const cClose = () => { $("cSheet").hidden = true; };
+const cClose = () => { $("cDone").hidden = true; if (isPC()) render(); else $("cSheet").hidden = true; };
 $("cNext").onclick = cOpen;
 $("cClose").onclick = cClose;
 $("cSheet").addEventListener("click", (e) => { if (e.target === $("cSheet")) cClose(); });
@@ -242,20 +275,25 @@ async function lookupSid() {
   } catch { counter.freeLeft = null; }
   renderCounterSheet();
 }
+function resetCounter() {
+  counter.cart = {};
+  counter.sid = "";
+  counter.freeLeft = null;
+  $("cSid").value = "";
+}
 async function counterOrder(type) {
   $("cErr").hidden = true;
   const btn = type === "student" ? $("cAsStu") : $("cAsGen");
   btn.disabled = true;
+  const payload = {
+    asStaff: true, type, clientId: newId(),
+    ...(type === "student" ? { studentId: counter.sid } : {}),
+    items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
+  };
   try {
-    const r = await call("order", {
-      asStaff: true, staffKey: key, type, clientId: newId(),
-      ...(type === "student" ? { studentId: counter.sid } : {}),
-      items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
-    });
-    counter.cart = {};
-    counter.sid = "";
-    counter.freeLeft = null;
-    $("cSid").value = "";
+    if (queue.some((x) => x.kind === "order")) throw Object.assign(new Error("queued"), { network: true });   // 先に貯まっている分を追い越さない
+    const r = await call("order", { ...payload, staffKey: key });
+    resetCounter();
     $("cDone").hidden = false;
     $("cDone").html = `<div class="show-no"><small>呼び出し番号</small>${pad(r.no)}</div>${r.free ? `<div class="need-big id">無料 ${r.free}杯（学生証を確認）</div>` : ""}${r.total ? `<div class="need-big cash">${yen(r.total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
     $("cAgain").onclick = cClose;
@@ -263,11 +301,74 @@ async function counterOrder(type) {
     lastSnap = "";
     refresh();
   } catch (e) {
-    $("cErr").textContent = { soldOut: "売り切れがあります", needSid: "学籍番号を7桁で入れてください" }[e.message] || (e.network ? "通信できません。もう一度押してください" : "注文を入れられませんでした");
-    $("cErr").hidden = false;
+    if (e.network) {
+      // 通信できない：この端末に貯めて、仮番号をお客さんに伝える
+      const seq = load(SEQ_KEY, 0) + 1;
+      save(SEQ_KEY, seq);
+      const label = "オ" + seq;
+      const q = payload.items.reduce((a, i) => a + i.qty, 0);
+      const free = type === "student" ? Math.min(counter.freeLeft ?? st.freeLimit ?? 1, q) : 0;
+      const total = (q - free) * st.price;
+      queue.push({ kind: "order", label, payload, order: {
+        id: "local:" + label, label, no: 0, time: Date.now(), type, byStaff: true, status: "new", slot: "", free, total,
+        studentId: counter.sid, lines: payload.items.map((i) => ({ code: i.code, name: byCode(i.code)?.name, variant: byCode(i.code)?.variant, qty: i.qty })),
+      } });
+      saveQueue();
+      resetCounter();
+      $("cDone").hidden = false;
+      $("cDone").html = `<div class="show-no"><small>呼び出し番号（仮）</small>${label}</div><small class="muted">通信が戻ったら自動で送ります</small>${free ? `<div class="need-big id">無料 ${free}杯（学生証を確認）</div>` : ""}${total ? `<div class="need-big cash">${yen(total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
+      $("cAgain").onclick = cClose;
+      render();
+    } else {
+      $("cErr").textContent = { soldOut: "売り切れがあります", needSid: "学籍番号を7桁で入れてください" }[e.message] || "注文を入れられませんでした";
+      $("cErr").hidden = false;
+    }
   }
   btn.disabled = false;
 }
+
+// 貯まっている店頭の注文・受け渡しを、古い順に送る（注文には番号 clientId が付いているので、二重にはならない）
+let flushing = false;
+async function flushQueue() {
+  if (flushing || !queue.length) return;
+  flushing = true;
+  try {
+    while (queue.length) {
+      const x = queue[0];
+      if (x.kind === "order") {
+        let r;
+        try { r = await call("order", { ...x.payload, staffKey: key }); }
+        catch (e) {
+          if (e.network) throw e;
+          toast(`${x.label} を送れませんでした（${e.message}）。スプレッドシートに書いてください`);
+          r = null;
+        }
+        if (r) {
+          labels[r.id] = x.label;
+          save(LABEL_KEY, labels);
+          if (x.order.status === "done") queue.push({ kind: "pickup", id: r.id });
+          toast(`${x.label} を送りました（本番号 ${pad(r.no)}）`);
+        }
+      } else {
+        try { await call("pickup", { staffKey: key, id: x.id }); }
+        catch (e) { if (e.network) throw e; }
+      }
+      queue.shift();
+      saveQueue();
+    }
+  } finally {
+    flushing = false;
+    render();
+  }
+}
+// パソコン：15秒ごとに最新にする（貯まった分もこのとき送る）。スマホは今までどおり「下に引く」とき
+let autoTimer = null;
+function startAuto() {
+  if (autoTimer) return;
+  autoTimer = setInterval(() => { if (isPC() || queue.length) refresh(); }, 15000);
+  addEventListener("online", () => refresh());
+}
+const numLabel = (o) => (o?.label || labels[o?.id] || pad(o?.no));
 $("cAsStu").onclick = () => counterOrder("student");
 $("cAsGen").onclick = () => counterOrder("general");
 
@@ -302,7 +403,7 @@ function card(o, btn) {
     <div class="opic">${o.lines.map((l) => `<span class="ocup">${cupSVG({ ...l, color: byCode(l.code)?.color })}${l.qty > 1 ? `<b>×${l.qty}</b>` : ""}</span>`).join("")}${o.byStaff ? `<small class="otag">店頭</small>` : ""}</div>
     ${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
     <div class="obody">
-      <div class="ono">${pad(o.no)}</div>
+      <div class="ono">${o.label ? `${esc(o.label)}<small>未送信</small>` : labels[o.id] ? `${esc(labels[o.id])}<small>本番号 ${pad(o.no)}</small>` : pad(o.no)}</div>
       <ul class="olist">${o.lines.map((l) => `<li><span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
       <div class="oneed">${need(o)}</div>
       ${ageBar(o)}
@@ -314,12 +415,24 @@ const list = (arr, fn) => (arr.length ? arr.map(fn).join("") : `<div class="empt
 
 function render() {
   if (!st) return;
-  const waiting = orders.filter((o) => ["new", "making", "ready"].includes(o.status));
+  const pc = isPC();
+  document.body.classList.toggle("pc", pc);
+  if (pc && tab === "counter") tab = "kitchen";
+  // パソコンでは注文の確認を下から出すシートではなく、メニューの下に置く
+  const home = pc ? document.querySelector('[data-panel="counter"]') : document.body;
+  if ($("cSheet").parentElement !== home) home.append($("cSheet"));
+  const pendingPick = new Set(queue.filter((x) => x.kind === "pickup").map((x) => x.id));
+  const local = queue.filter((x) => x.kind === "order").map((x) => x.order);
+  const all = [...orders.map((o) => (pendingPick.has(o.id) ? { ...o, status: "done" } : o)), ...local];
+  const waiting = all.filter((o) => ["new", "making", "ready"].includes(o.status));
 
   $("state").className = "banner" + (st.open ? "" : " closed");
   $("state").textContent = st.open ? "受付中" : "受付停止中";
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
-  for (const p of document.querySelectorAll("[data-panel]")) p.hidden = p.dataset.panel !== tab;
+  for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (tab === "admin") !== (p.dataset.panel === "admin") : p.dataset.panel !== tab;
+  const unsent = queue.length;
+  $("queueInfo").hidden = !unsent;
+  $("queueInfo").textContent = `まだ送れていない操作 ${unsent}件（つながったら自動で送ります）`;
   $("cKitchen").textContent = waiting.length;
   // 受け取り時間ごとにまとめる（店頭で入れた注文は「今すぐ」）
   const bySlot = {};
@@ -345,7 +458,8 @@ function render() {
   // 下のバー（店頭で注文のタブでカートに何か入っているときだけ）
   const cl = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
   const cq = cl.reduce((a, l) => a + l.qty, 0);
-  $("cBar").hidden = tab !== "counter" || !cq;
+  $("cBar").hidden = pc || tab !== "counter" || !cq;
+  if (pc) $("cSheet").hidden = tab === "admin" || (!cq && $("cDone").hidden);
   if (cq) {
     $("cCups").html = cl.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
     $("cCount").textContent = `${cq}杯`;
