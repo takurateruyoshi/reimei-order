@@ -66,7 +66,11 @@ export class Hub {
   enqueue(p) {
     delete p.action;
     return new Promise((done) => {
-      this.queue.push({ p, done });
+      // スタッフ（店頭）の注文は、待っているモバイルの注文より先に送る（次のまとまりの先頭に入れる）
+      if (p.asStaff) {
+        const i = this.queue.findIndex((x) => !x.p.asStaff);
+        this.queue.splice(i < 0 ? this.queue.length : i, 0, { p, done });
+      } else this.queue.push({ p, done });
       if (!this.timer && !this.sending) this.timer = setTimeout(() => this.flush(), WINDOW_MS);
     });
   }
