@@ -1,6 +1,6 @@
 // Apps Script をウェブアプリとしてデプロイしたときのURL（…/exec）。
 // null のままだとデモモード（このブラウザ内だけで動く）になる。
-export const API_URL = "https://script.google.com/macros/s/AKfycbyVtG0vOdCXOFVW_DbV4xJrXpbddkdoRSmDKGK11NXDYX-hyyyJN8i3Afv1msSt2mY__g/exec";
+export const API_URL = "https://script.google.com/macros/s/AKfycbxv5N2YLQEoCUVAK77b3hl6Hn5FsuyhubMLa6MYVXjZexspS383CurBacN7oIN7N4hh2w/exec";
 
 // 中継サーバー（Cloudflare）。同じ瞬間の注文をまとめて送る。止まっているときは自動で API_URL に直接つなぐ。
 // null にすると中継を使わない
