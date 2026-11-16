@@ -232,6 +232,7 @@ $("cCodes").addEventListener("click", (e) => {
   } else {
     if (m?.remaining !== null && m?.remaining !== undefined && (counter.cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
     counter.cart[code] = (counter.cart[code] || 0) + 1;
+    if (isPC()) $("cDone").hidden = true;   // 次の注文に入ったら、前の番号の表示は消す
   }
   render();
 });
@@ -325,6 +326,7 @@ async function counterOrder(type) {
     }
   }
   btn.disabled = false;
+  renderCounterSheet();
 }
 
 // 貯まっている店頭の注文・受け渡しを、古い順に送る（注文には番号 clientId が付いているので、二重にはならない）
@@ -376,7 +378,7 @@ function renderCounterSheet() {
   if ($("cSheet").hidden || !st) return;
   const lines = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
   const q = lines.reduce((a, l) => a + l.qty, 0);
-  $("cLines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
+  $("cLines").html = !q ? `<li class="muted">メニューの商品を押すと、ここに入ります</li>` : lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   $("cGenPrice").textContent = yen(q * st.price);
   const ok = /^\d{7}$/.test(counter.sid || "");
   $("cAsStu").disabled = !ok || !q;
@@ -418,9 +420,9 @@ function render() {
   const pc = isPC();
   document.body.classList.toggle("pc", pc);
   if (pc && tab === "counter") tab = "kitchen";
-  // パソコンでは注文の確認を下から出すシートではなく、メニューの下に置く
+  // パソコンでは注文の欄を下から出すシートではなく、メニューの上（右の列の一番上）に常に置く
   const home = pc ? document.querySelector('[data-panel="counter"]') : document.body;
-  if ($("cSheet").parentElement !== home) home.append($("cSheet"));
+  if ($("cSheet").parentElement !== home) { if (pc) home.prepend($("cSheet")); else home.append($("cSheet")); }
   const pendingPick = new Set(queue.filter((x) => x.kind === "pickup").map((x) => x.id));
   const local = queue.filter((x) => x.kind === "order").map((x) => x.order);
   const all = [...orders.map((o) => (pendingPick.has(o.id) ? { ...o, status: "done" } : o)), ...local];
@@ -459,7 +461,7 @@ function render() {
   const cl = Object.entries(counter.cart).map(([code, qty]) => ({ ...byCode(code), qty }));
   const cq = cl.reduce((a, l) => a + l.qty, 0);
   $("cBar").hidden = pc || tab !== "counter" || !cq;
-  if (pc) $("cSheet").hidden = tab === "admin" || (!cq && $("cDone").hidden);
+  if (pc) $("cSheet").hidden = tab === "admin";
   if (cq) {
     $("cCups").html = cl.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
     $("cCount").textContent = `${cq}杯`;
