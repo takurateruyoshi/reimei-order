@@ -21,6 +21,19 @@ const ERR = {
 };
 // モバイルオーダーで頼める杯数：学部生の無料の杯数まで（2杯目からは店頭）
 const mobileCap = () => st.allowGeneral && !me?.isStudent ? st.maxQty : Math.min(st.maxQty, me?.isStudent ? me.freeLeft : (st.freeLimit || st.maxQty));
+// ?trial：みんなで実際のアプリを使う実験用。画面が最新になるまでと、注文が完了するまでの秒数を上に出してコピーできるようにする
+const TRIAL = new URLSearchParams(location.search).has("trial");
+const trialLog = { open: null, order: null };
+function trialShow() {
+  let b = document.getElementById("trialBox");
+  if (!b) { b = document.createElement("div"); b.id = "trialBox"; b.className = "trial-box"; document.body.prepend(b); }
+  const f = (ms) => (ms == null ? "—" : (ms / 1000).toFixed(1) + "秒");
+  const text = `【実験】画面が最新になるまで ${f(trialLog.open)}／注文が完了するまで ${f(trialLog.order)}／${new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+  b.innerHTML = `<span>${esc(text)}</span><button type="button" id="trialCopy">コピー</button>`;
+  document.getElementById("trialCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(text); toast("コピーしました"); } catch { getSelection().selectAllChildren(b.firstChild); }
+  };
+}
 const errMsg = (e) => ERR[e?.message] || "うまくいきませんでした。もう一度試してください";
 
 $("shop").textContent = SHOP_NAME;
@@ -284,12 +297,14 @@ async function sendPending() {
   sending = true;
   clearTimeout(retryTimer);
   $("sheet").hidden = true;
+  const sentAt = performance.now();
   showSending("スプレッドシートに登録しています…");
   // 注文が集中しているときは中継で順番待ちになる（最大で数分）。待っていることを伝える
   const slowTimer = setTimeout(() => showSending("混み合っています。順番に登録しています（そのままお待ちください）"), 12000);
   try {
     const r = await call("order", pending);
     clearTimeout(slowTimer);
+    if (TRIAL) { trialLog.order = performance.now() - sentAt; trialShow(); }
     pending = null;
     savePending();
     showSending(null);
@@ -577,6 +592,7 @@ st = cachedState() || { ...SNAPSHOT, snapshot: true };
 $("loading").hidden = true;
 render();
 await Promise.all([loadState(), loadMe(), pollTickets()]);
+if (TRIAL) { trialLog.open = performance.now(); trialShow(); }
 if (backToken) {
   if (!me?.isStudent) { token = null; me = null; saveToken(null); }
   if (cartQty()) { $("sheet").hidden = false; renderSheet(); }

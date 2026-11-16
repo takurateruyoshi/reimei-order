@@ -594,3 +594,7 @@ body.pc #cSheet .sheet { max-width: none; border-radius: 16px; border: 1.5px sol
 body.pc #cClose { display: none; }
 body.pc .ocards { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 .ocard2 .ono small { display: block; }
+
+/* ---- 実験用（?trial）：上に秒数を出す ---- */
+.trial-box { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; gap: 8px; align-items: center; justify-content: space-between; background: #1f2533; color: #fff; font-size: 13px; font-weight: 700; padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); }
+.trial-box button { flex: none; border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 700; background: #fff; color: #1f2533; }
