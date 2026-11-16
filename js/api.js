@@ -302,7 +302,8 @@ async function demoCall(action, p) {
         const m = menu[i.code];
         if (!m || m.soldOut || (m.remaining !== null && m.remaining < i.qty)) fail("soldOut");
       }
-      const no = Math.max(0, ...s.rows.filter((r) => r.day === c.day).map((r) => r.no)) + 1;
+      // モバイルは 1〜、店頭は 1001〜（本番の Apps Script と同じ）
+      const no = Math.max(byStaff ? 1000 : 0, ...s.rows.filter((r) => r.day === c.day && (r.no > 1000) === byStaff).map((r) => r.no)) + 1;
       const id = p.clientId || Math.random().toString(36).slice(2, 10);
       const secret = Math.random().toString(36).slice(2);
       let used = 0, total = 0;
