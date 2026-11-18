@@ -32,9 +32,20 @@ export default {
   },
 };
 
+// 時間帯（15分ごと、日本時間）の名前。例 "2026-11-21 10:15"
+const bucketOf = (t) => {
+  const d = new Date(t + 9 * 3600e3);
+  const m = d.getUTCMinutes();
+  return d.toISOString().slice(0, 10) + " " + String(d.getUTCHours()).padStart(2, "0") + ":" + String(m - (m % 15)).padStart(2, "0");
+};
+const STATS_EVERY = 120000;   // 2分ごとにまとめてスプレッドシートに書く
+
 export class Hub {
   constructor(state, env) {
+    this.state = state;
     this.env = env;
+    this.stats = new Map();   // 時間帯 → { opens: 画面を開いた回数, orders: 注文数, vids: 利用者（端末）の集まり }
+    this.dirty = new Set();   // まだ書いていない時間帯
     this.queue = [];          // まだ送っていない注文 { p, done }
     this.timer = null;
     this.sending = false;
@@ -45,8 +56,41 @@ export class Hub {
   async fetch(req) {
     const body = await req.text();
     const p = JSON.parse(body);
-    if (p.action === "order") return json(JSON.stringify(await this.enqueue(p)));
+    const vid = typeof p.vid === "string" ? p.vid.slice(0, 20) : "";
+    if (p.action === "order") {
+      const r = await this.enqueue(p);
+      if (!r.error) this.record("order", vid);
+      return json(JSON.stringify(r));
+    }
+    if (p.action === "state") this.record("open", vid);
     return json(await this.read(p.action, body));
+  }
+
+  // ---------- 時間帯ごとの利用者数の記録（名前や学籍番号は持たない。端末ごとのでたらめな番号だけ） ----------
+  record(kind, vid) {
+    const b = bucketOf(Date.now());
+    let s = this.stats.get(b);
+    if (!s) { s = { opens: 0, orders: 0, vids: new Set() }; this.stats.set(b, s); }
+    if (kind === "open") s.opens++;
+    if (kind === "order") s.orders++;
+    if (vid) s.vids.add(vid);
+    this.dirty.add(b);
+    this.state.storage.getAlarm().then((a) => { if (a == null) this.state.storage.setAlarm(Date.now() + STATS_EVERY); }).catch(() => {});
+  }
+  async alarm() {
+    if (!this.env.STATS_KEY || !this.dirty.size) return;
+    const rows = [...this.dirty].map((b) => { const s = this.stats.get(b); return [b, s.opens, s.vids.size, s.orders]; });
+    this.dirty.clear();
+    try {
+      const t = await toGas(this.env, JSON.stringify({ action: "stats", key: this.env.STATS_KEY, rows }));
+      if (JSON.parse(t).error) throw new Error(t);
+    } catch {
+      rows.forEach((r) => this.dirty.add(r[0]));   // 書けなかったら次の回にもう一度
+      this.state.storage.setAlarm(Date.now() + STATS_EVERY);
+    }
+    // 古い時間帯は捨てる（今日と昨日の分だけ残す）
+    const keep = bucketOf(Date.now() - 86400e3).slice(0, 10);
+    for (const b of this.stats.keys()) if (b.slice(0, 10) < keep) this.stats.delete(b);
   }
 
   // ---------- 読み出し：同時に来た問い合わせは1回にまとめ、短い間は覚えておく ----------
