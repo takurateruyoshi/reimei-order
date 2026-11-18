@@ -464,6 +464,7 @@ function render() {
   if (pc) $("cSheet").hidden = tab === "admin";
   // 注文を入れた直後（番号を出している間）は、学部生・一般の選択などを隠して番号だけを見せる
   $("cSheet").classList.toggle("done", !$("cDone").hidden && !cq);
+  $("cSheet").classList.toggle("empty", pc && !cq && $("cDone").hidden);
   if (cq) {
     $("cCups").html = cl.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
     $("cCount").textContent = `${cq}杯`;

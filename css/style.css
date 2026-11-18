@@ -585,7 +585,7 @@ html, body { overscroll-behavior-y: contain; }
 /* ---- パソコン（1100px以上）：左に受け渡し、右に店頭で注文 ---- */
 .queue-info { background: var(--surface); border: 1.5px dashed var(--line); border-radius: 10px; padding: 8px 12px; font-weight: 700; text-align: center; }
 body.pc .wrap.wide { max-width: 1600px; padding-inline: 24px; }
-body.pc #main { display: grid !important; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px 28px; align-items: start; }
+body.pc #main { display: grid !important; grid-template-columns: minmax(0, 1.8fr) minmax(360px, 1fr); gap: 16px 28px; align-items: start; }
 body.pc #main > .net-off, body.pc #main > .queue-info, body.pc #main > #state, body.pc #main > .tabs, body.pc #main > [data-panel="admin"] { grid-column: 1 / -1; }
 body.pc .tabs [data-tab="counter"] { display: none; }
 body.pc [data-panel="counter"] { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
@@ -594,9 +594,30 @@ body.pc #cSheet .sheet { max-width: none; border-radius: 16px; border: 1.5px sol
 body.pc #cClose { display: none; }
 #cDone { order: -1; }   /* 出た呼び出し番号は欄の一番上に */
 #cSheet.done .choose, #cSheet.done .lines, #cSheet.done #cErr { display: none; }
-body.pc .ocards { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+
 .ocard2 .ono small { display: block; }
 
 /* ---- 実験用（?trial）：上に秒数を出す ---- */
 .trial-box { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; gap: 8px; align-items: center; justify-content: space-between; background: #1f2533; color: #fff; font-size: 13px; font-weight: 700; padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); }
 .trial-box button { flex: none; border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 700; background: #fff; color: #1f2533; }
+
+/* ---- 受け渡しの一覧：横長のカード（左に絵、まん中に番号と中身、右に「渡した」）。たくさん並べて見られるように ---- */
+.ocards { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+@media (min-width: 640px) { .ocards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; } }
+.ocard2 { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; grid-template-areas: "pic body btn"; align-items: center; border-radius: 12px; }
+.ocard2.sk-card { min-height: 72px; }
+.ocard2 .bad-why { grid-area: why; }
+.ocard2.bad { grid-template-areas: "why why why" "pic body btn"; }
+.ocard2 .opic { grid-area: pic; align-self: stretch; min-height: 0; flex-direction: column; flex-wrap: nowrap; gap: 2px; padding: 4px 2px; }
+.ocard2 .ocup .cup { width: 38px; height: 38px; }
+.ocard2 .ocup b { right: -6px; top: -4px; font-size: 10px; padding: 0 5px; }
+.ocard2 .otag { left: 3px; top: 2px; font-size: 9.5px; padding: 0 5px; }
+.ocard2 .obody { grid-area: body; padding: 6px 8px; gap: 2px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "no list" "no need" "age age"; column-gap: 10px; align-items: center; }
+.ocard2 .ono { grid-area: no; font-size: 30px; line-height: 1; }
+.ocard2 .olist { grid-area: list; font-size: 12.5px; }
+.ocard2 .oneed { grid-area: need; }
+.ocard2 .age { grid-area: age; margin-top: 4px; }
+.ocard2 .give { grid-area: btn; margin: 0 10px 0 0; padding: 12px 14px; font-size: 14px; white-space: nowrap; }
+body.pc .ocards { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+/* パソコン：商品を選ぶ前は、学部生・一般の選択を隠して、メニューを上に出す */
+#cSheet.empty .choose { display: none; }
