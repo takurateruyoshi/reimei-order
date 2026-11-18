@@ -35,9 +35,17 @@ export async function call(action, payload = {}) {
 // 時間切れ＝中継は動いているが混んでいるだけ。このときは直接には送らず、中継で送り直す
 // （直接にも送ると、シートの順番待ちを中継と取り合って、かえって遅くなる）
 const RELAY_WAIT = { order: 360000 };
+// 時間帯ごとの利用者数を数えるための、この端末だけの番号（でたらめな文字。名前や学籍番号とは結びつかない）
+const VID = (() => {
+  try {
+    let v = localStorage.getItem("reimei-vid");
+    if (!v) { v = Math.random().toString(36).slice(2, 12); localStorage.setItem("reimei-vid", v); }
+    return v;
+  } catch { return ""; }
+})();
 let relayOffUntil = 0;
 async function post(action, payload) {
-  const body = JSON.stringify({ action, ...payload });
+  const body = JSON.stringify({ action, ...payload, vid: VID });
   if (RELAY_URL && Date.now() > relayOffUntil) {
     try {
       return await send(RELAY_URL, body, RELAY_WAIT[action] || 30000);

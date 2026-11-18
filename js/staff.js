@@ -237,8 +237,8 @@ $("cCodes").addEventListener("click", (e) => {
   render();
 });
 // 店頭の注文：下のバー →「注文へ」→ 学部生か一般かを選ぶ。学部生は学籍番号が必要（学生証の読み取りか手入力）
-const cOpen = () => { $("cErr").hidden = true; $("cDone").hidden = true; $("cSheet").hidden = false; renderCounterSheet(); };
-const cClose = () => { $("cDone").hidden = true; if (isPC()) render(); else $("cSheet").hidden = true; };
+const cOpen = () => { $("cErr").hidden = true; $("cDone").hidden = true; $("cSheet").classList.remove("done"); $("cSheet").hidden = false; renderCounterSheet(); };
+const cClose = () => { $("cDone").hidden = true; $("cSheet").classList.remove("done"); if (isPC()) render(); else $("cSheet").hidden = true; };
 $("cNext").onclick = cOpen;
 $("cClose").onclick = cClose;
 $("cSheet").addEventListener("click", (e) => { if (e.target === $("cSheet")) cClose(); });
@@ -462,6 +462,8 @@ function render() {
   const cq = cl.reduce((a, l) => a + l.qty, 0);
   $("cBar").hidden = pc || tab !== "counter" || !cq;
   if (pc) $("cSheet").hidden = tab === "admin";
+  // 注文を入れた直後（番号を出している間）は、学部生・一般の選択などを隠して番号だけを見せる
+  $("cSheet").classList.toggle("done", !$("cDone").hidden && !cq);
   if (cq) {
     $("cCups").html = cl.flatMap((l) => Array(l.qty).fill(cupSVG(l))).slice(0, 5).join("");
     $("cCount").textContent = `${cq}杯`;

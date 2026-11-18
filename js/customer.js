@@ -416,7 +416,7 @@ function render() {
     const free = me?.isStudent ? Math.min(me.freeLeft, q) : 0;
     $("cartHint").textContent = me?.isStudent
       ? (free ? `無料${free}杯${q - free ? ` ＋ ${yen((q - free) * st.price)}` : ""}` : yen(q * st.price))
-      : `一般 ${yen(q * st.price)}`;
+      : st.allowGeneral ? `一般 ${yen(q * st.price)}` : `学部生は${st.freeLimit || 1}杯無料`;
   }
   if (!$("sheet").hidden) renderSheet();
   renderTickets();

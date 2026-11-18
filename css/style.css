@@ -592,7 +592,8 @@ body.pc [data-panel="counter"] { position: sticky; top: 12px; max-height: calc(1
 body.pc #cSheet { position: static; inset: auto; background: none; display: block; z-index: auto; }
 body.pc #cSheet .sheet { max-width: none; border-radius: 16px; border: 1.5px solid var(--line); max-height: none; padding: 14px 16px; }
 body.pc #cClose { display: none; }
-body.pc #cDone { order: -1; }   /* 出た呼び出し番号は欄の一番上に */
+#cDone { order: -1; }   /* 出た呼び出し番号は欄の一番上に */
+#cSheet.done .choose, #cSheet.done .lines, #cSheet.done #cErr { display: none; }
 body.pc .ocards { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 .ocard2 .ono small { display: block; }
 
