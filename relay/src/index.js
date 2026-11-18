@@ -44,8 +44,6 @@ export class Hub {
   constructor(state, env) {
     this.state = state;
     this.env = env;
-    this.stats = new Map();   // 時間帯 → { opens: 画面を開いた回数, orders: 注文数, vids: 利用者（端末）の集まり }
-    this.dirty = new Set();   // まだ書いていない時間帯
     this.queue = [];          // まだ送っていない注文 { p, done }
     this.timer = null;
     this.sending = false;
@@ -59,38 +57,50 @@ export class Hub {
     const vid = typeof p.vid === "string" ? p.vid.slice(0, 20) : "";
     if (p.action === "order") {
       const r = await this.enqueue(p);
-      if (!r.error) this.record("order", vid);
+      if (!r.error) await this.record("order", vid);
       return json(JSON.stringify(r));
     }
-    if (p.action === "state") this.record("open", vid);
+    if (p.action === "state") await this.record("open", vid);
     return json(await this.read(p.action, body));
   }
 
   // ---------- 時間帯ごとの利用者数の記録（名前や学籍番号は持たない。端末ごとのでたらめな番号だけ） ----------
-  record(kind, vid) {
-    const b = bucketOf(Date.now());
-    let s = this.stats.get(b);
-    if (!s) { s = { opens: 0, orders: 0, vids: new Set() }; this.stats.set(b, s); }
-    if (kind === "open") s.opens++;
-    if (kind === "order") s.orders++;
-    if (vid) s.vids.add(vid);
-    this.dirty.add(b);
-    this.state.storage.getAlarm().then((a) => { if (a == null) this.state.storage.setAlarm(Date.now() + STATS_EVERY); }).catch(() => {});
+  // 中継サーバーはしばらく使われないと眠って中身を忘れるので、数は保存領域（storage）に書いておく
+  async record(kind, vid) {
+    try {
+      const st = this.state.storage;
+      const b = bucketOf(Date.now()), k = "s:" + b;
+      const s = (await st.get(k)) || { opens: 0, orders: 0, vids: [] };
+      if (kind === "open") s.opens++;
+      if (kind === "order") s.orders++;
+      if (vid && !s.vids.includes(vid)) s.vids.push(vid);
+      const dirty = (await st.get("dirty")) || [];
+      if (!dirty.includes(b)) dirty.push(b);
+      await st.put({ [k]: s, dirty });
+      if ((await st.getAlarm()) == null) await st.setAlarm(Date.now() + STATS_EVERY);
+    } catch {}
   }
   async alarm() {
-    if (!this.env.STATS_KEY || !this.dirty.size) return;
-    const rows = [...this.dirty].map((b) => { const s = this.stats.get(b); return [b, s.opens, s.vids.size, s.orders]; });
-    this.dirty.clear();
+    const st = this.state.storage;
+    const dirty = (await st.get("dirty")) || [];
+    if (!this.env.STATS_KEY || !dirty.length) return;
+    const rows = [];
+    for (const b of dirty) { const s = await st.get("s:" + b); if (s) rows.push([b, s.opens, s.vids.length, s.orders]); }
     try {
       const t = await toGas(this.env, JSON.stringify({ action: "stats", key: this.env.STATS_KEY, rows }));
       if (JSON.parse(t).error) throw new Error(t);
+      const left = ((await st.get("dirty")) || []).filter((b) => !dirty.includes(b) || b === bucketOf(Date.now()));
+      await st.put("dirty", left);
     } catch {
-      rows.forEach((r) => this.dirty.add(r[0]));   // 書けなかったら次の回にもう一度
-      this.state.storage.setAlarm(Date.now() + STATS_EVERY);
+      await st.setAlarm(Date.now() + STATS_EVERY);   // 書けなかったら次の回にもう一度
+      return;
     }
-    // 古い時間帯は捨てる（今日と昨日の分だけ残す）
+    // 古い時間帯は捨てる（昨日より前）
     const keep = bucketOf(Date.now() - 86400e3).slice(0, 10);
-    for (const b of this.stats.keys()) if (b.slice(0, 10) < keep) this.stats.delete(b);
+    const all = await st.list({ prefix: "s:" });
+    const old = [...all.keys()].filter((k) => k.slice(2, 12) < keep);
+    if (old.length) await st.delete(old);
+    if (((await st.get("dirty")) || []).length) await st.setAlarm(Date.now() + STATS_EVERY);
   }
 
   // ---------- 読み出し：同時に来た問い合わせは1回にまとめ、短い間は覚えておく ----------
