@@ -65,11 +65,16 @@
         <div class="row"><span>圏外のときの仮番号（この端末）</span><b id="devMark"></b><button class="link-btn" type="button" id="devNext">記号を変える</button></div>
       </div>
       <div class="panel">
-        <h2>全体へのお知らせ</h2>
-        <p class="muted" style="margin:0;font-size:13px">お客さん・スタッフ全員の画面の一番上に出ます（アプリが止まりそう・店頭だけで受付 など）</p>
-        <textarea id="noticeIn" class="notice-in" rows="2" maxlength="300" placeholder="例：ただいまモバイルオーダーが混み合っています。店頭でも注文できます"></textarea>
-        <label class="row" id="lineRow"><input type="checkbox" id="noticeLine"> <span id="lineLabel">LINEにも送る</span></label>
-        <div class="row"><button class="go" type="button" id="noticeSend">出す</button><button class="link-btn" type="button" id="noticeClear">消す</button></div>
+        <h2>緊急連絡</h2>
+        <p class="muted" style="margin:0;font-size:13px">画面の一番上に出ます。スプレッドシートの「緊急連絡」シートからも書けます</p>
+        <b>お客さん向け（モバイルオーダーの画面）</b>
+        <p class="muted cur-notice" id="noticeNow"></p>
+        <textarea id="noticeIn" class="notice-in" rows="2" maxlength="300" placeholder="例：混み合っているため、モバイルオーダーを一時停止しています。店頭でご注文ください"></textarea>
+        <div class="row"><button class="go" type="button" data-notice="guest">出す</button><button class="link-btn" type="button" data-notice-clear="guest">消す</button></div>
+        <b>スタッフ向け（スタッフ画面だけ）</b>
+        <p class="muted cur-notice" id="staffNoticeNow"></p>
+        <textarea id="staffNoticeIn" class="notice-in" rows="2" maxlength="300" placeholder="例：モバイルオーダーが止まっています。店頭はワンタッチ注文のシートで受け付けてください"></textarea>
+        <div class="row"><button class="go" type="button" data-notice="staff">出す</button><button class="link-btn" type="button" data-notice-clear="staff">消す</button></div>
       </div>
       <div class="panel">
         <h2>メニュー</h2>

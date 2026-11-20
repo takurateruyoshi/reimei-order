@@ -692,3 +692,4 @@ html.has-ticket #menu:empty, html.has-ticket #loading { display: none; }
 .notice svg { width: 22px; height: 22px; flex: none; margin-top: 1px; fill: none; stroke: #c62828; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
 @keyframes noticeIn { from { transform: translateY(-6px); opacity: 0; } }
 .notice-in { width: 100%; font: inherit; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: vertical; }
+.cur-notice { margin: 0; font-size: 12.5px; white-space: pre-wrap; }

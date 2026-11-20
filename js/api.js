@@ -239,7 +239,7 @@ async function demoCall(action, p) {
   const cups = (f) => s.rows.filter((r) => r.day === c.day && r.status !== "cancel" && f(r)).reduce((a, r) => a + r.qty, 0);
   const cap = { dayCap: c.day === 1 ? 600 : 400, slotCap: c.day === 1 ? 40 : 30, cutoff: 10, allowGeneral: !!c.allowGeneral };
   const pub = () => ({
-    ...c, ...cap, slots, menu: demoMenu(s),
+    ...c, staffNotice: undefined, ...cap, slots, menu: demoMenu(s),
     dayLeft: Math.max(0, cap.dayCap - cups(() => true)),
     slotLeft: Object.fromEntries(slots.map((t) => [t, Math.max(0, cap.slotCap - cups((r) => r.slot === t))])),
   });
@@ -344,7 +344,7 @@ async function demoCall(action, p) {
     }
     case "staffList":
       staff();
-      return { state: pub(), orders: demoGroup(s.rows.filter((r) => r.day === c.day)).map(({ secret, ...o }) => o) };
+      return { state: pub(), staffNotice: c.staffNotice || "", orders: demoGroup(s.rows.filter((r) => r.day === c.day)).map(({ secret, ...o }) => o) };
     case "setStatus":
       staff();
       s.rows.forEach((r) => { if (r.id === p.id && r.status !== "cancel") r.status = p.status; });
@@ -356,8 +356,9 @@ async function demoCall(action, p) {
       if (typeof p.open === "boolean") c.open = p.open;
       if (p.soldOut) s.menu.forEach((m) => { if (m.code in p.soldOut) m.soldOut = !!p.soldOut[m.code]; });
       if (typeof p.notice === "string") c.notice = p.notice.trim().slice(0, 300);
+      if (typeof p.staffNotice === "string") c.staffNotice = p.staffNotice.trim().slice(0, 300);
       demoSave(s);
-      return typeof p.notice === "string" && p.line ? { ok: true, line: "off" } : { ok: true };
+      return { ok: true };
   }
   fail("unknown");
 }

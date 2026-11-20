@@ -145,7 +145,7 @@ async function refresh() {
   try {
     await flushQueue();
     const d = await call("staffList", { staffKey: key });
-    lineReady = !!d.lineReady;
+    staffNotice = d.staffNotice || "";
     apply(d);
     save(LASTOK_KEY, Date.now());
     $("netOff").hidden = true;
@@ -296,25 +296,31 @@ $("devNext").onclick = () => {
   save("reimei-staff-dev", DEV);
   render();
 };
-// 全体へのお知らせ：出す／消す（LINEにも送るにチェックがあれば、LINE公式アカウントの友だち全員にも送る）
-let lineReady = false;
-async function sendNotice(text) {
-  const line = !!text && $("noticeLine").checked;
-  if (line && !confirm("LINEで全員に送ります。よろしいですか？\n\n" + text)) return;
-  $("noticeSend").disabled = $("noticeClear").disabled = true;
+// 緊急連絡：お客さん向け（guest）とスタッフ向け（staff）を別々に出す／消す
+let staffNotice = "";
+async function sendNotice(kind, text) {
+  const btns = document.querySelectorAll("[data-notice],[data-notice-clear]");
+  btns.forEach((b) => (b.disabled = true));
   try {
-    const r = await call("setConfig", { staffKey: key, notice: text, line });
-    st.notice = text;
-    if (!text) $("noticeIn").value = "";
-    $("noticeLine").checked = false;
-    toast(!text ? "お知らせを消しました" : r.line === "sent" ? "お知らせを出して、LINEにも送りました" : line ? "お知らせを出しました（LINEは送れませんでした）" : "お知らせを出しました");
+    await call("setConfig", { staffKey: key, [kind === "staff" ? "staffNotice" : "notice"]: text });
+    if (kind === "staff") staffNotice = text; else st.notice = text;
+    $(kind === "staff" ? "staffNoticeIn" : "noticeIn").value = "";
+    toast((kind === "staff" ? "スタッフ向け" : "お客さん向け") + (text ? "の緊急連絡を出しました" : "の緊急連絡を消しました"));
   } catch { toast("うまくいきませんでした。もう一度押してください"); }
-  $("noticeSend").disabled = $("noticeClear").disabled = false;
+  btns.forEach((b) => (b.disabled = false));
   lastSnap = "";
+  render();
   refresh();
 }
-$("noticeSend").onclick = () => { const t = $("noticeIn").value.trim(); if (!t) return toast("お知らせの文を入れてください"); sendNotice(t); };
-$("noticeClear").onclick = () => sendNotice("");
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-notice]"), c = e.target.closest("[data-notice-clear]");
+  if (b) {
+    const t = $(b.dataset.notice === "staff" ? "staffNoticeIn" : "noticeIn").value.trim();
+    if (!t) return toast("連絡の文を入れてください");
+    sendNotice(b.dataset.notice, t);
+  }
+  if (c) sendNotice(c.dataset.noticeClear, "");
+});
 $("openSw").onclick = () => {
   st.open = !st.open;
   render();
@@ -556,10 +562,11 @@ function render() {
   const all = [...orders.map((o) => (pendingPick.has(o.id) ? { ...o, status: "done" } : o)), ...local];
   const waiting = all.filter((o) => ["new", "making", "ready"].includes(o.status));
 
-  $("notice").hidden = !st.notice;
-  $("noticeText").textContent = st.notice || "";
-  $("noticeLine").disabled = !lineReady;
-  $("lineLabel").textContent = lineReady ? "LINEにも送る（友だち全員に届きます）" : "LINEにも送る（LINEの設定がまだです）";
+  // スタッフ画面の一番上にはスタッフ向けの緊急連絡を出す（お客さん向けは「管理」で確認できる）
+  $("notice").hidden = !staffNotice;
+  $("noticeText").textContent = staffNotice;
+  $("noticeNow").textContent = st.notice ? "いま出ている：" + st.notice : "いまは出ていません";
+  $("staffNoticeNow").textContent = staffNotice ? "いま出ている：" + staffNotice : "いまは出ていません";
   $("state").className = "banner" + (st.open ? "" : " closed");
   $("state").textContent = st.open ? "受付中" : "受付停止中";
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
