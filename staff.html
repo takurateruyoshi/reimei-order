@@ -38,6 +38,7 @@
     <nav class="tabs" role="tablist" id="tabs">
       <button role="tab" data-tab="kitchen" aria-selected="true">受け渡し <span class="count" id="cKitchen">0</span></button>
       <button role="tab" data-tab="counter" aria-selected="false">店頭で注文</button>
+      <button role="tab" data-tab="make" aria-selected="false" hidden>製造 <span class="count" id="cMake">0</span></button>
       <button role="tab" data-tab="admin" aria-selected="false">管理</button>
     </nav>
     </div>
@@ -54,6 +55,13 @@
 
     <section data-panel="counter" class="panel" hidden>
       <section class="menu-book" id="cCodes" aria-label="メニュー"></section>
+    </section>
+
+    <section data-panel="make" hidden>
+      <div class="mk-cols">
+        <div><h3 class="mk-h">作る</h3><div class="mk-list" id="mkTodo"></div></div>
+        <div><h3 class="mk-h">できあがり <small>受け渡し待ち</small></h3><div class="mk-list" id="mkReady"></div></div>
+      </div>
     </section>
 
     <section data-panel="admin" hidden style="display:flex;flex-direction:column;gap:16px">

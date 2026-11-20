@@ -344,7 +344,7 @@ async function demoCall(action, p) {
     }
     case "staffList":
       staff();
-      return { state: pub(), staffNotice: c.staffNotice || "", orders: demoGroup(s.rows.filter((r) => r.day === c.day)).map(({ secret, ...o }) => o) };
+      return { state: pub(), maker: true, staffNotice: c.staffNotice || "", orders: demoGroup(s.rows.filter((r) => r.day === c.day)).map(({ secret, ...o }) => o) };
     case "setStatus":
       staff();
       s.rows.forEach((r) => { if (r.id === p.id && r.status !== "cancel") r.status = p.status; });

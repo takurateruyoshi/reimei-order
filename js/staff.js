@@ -12,6 +12,7 @@ let key = savedStaffKey();
 let st = null, orders = [], tab = "kitchen";
 let counter = { cart: {}, sid: "", freeLeft: null };
 let lastSnap = "";
+let maker = false;   // 製造の担当（スプレッドシート「スタッフ」の C列にチェック）だけ「製造」タブを出す
 
 // パソコン（横幅1100px以上）では「受け渡し」と「店頭で注文」を左右に並べて同時に出す
 const pcMQ = matchMedia("(min-width: 1100px)");
@@ -70,6 +71,7 @@ async function enter() {
     $("who").hidden = false;
     $("who").html = `<span>${esc(email)}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
+    maker = !!r.maker;
     apply(r);
     save(LASTOK_KEY, Date.now());
     $("main").classList.remove("loading");
@@ -135,6 +137,7 @@ async function refresh() {
     await flushQueue();
     const d = await call("staffList", { staffKey: key });
     staffNotice = d.staffNotice || "";
+    maker = !!d.maker;
     apply(d);
     save(LASTOK_KEY, Date.now());
     $("netOff").hidden = true;
@@ -252,6 +255,15 @@ $("camTog").onclick = () => {
   camSync();
 };
 document.addEventListener("visibilitychange", () => camSync());
+// 製造：「作った」→ できあがり／「作る方に戻す」→ 受付
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-made]");
+  if (!b) return;
+  const o = orders.find((x) => x.id === b.dataset.made);
+  if (o) o.status = b.dataset.to;   // 先に画面を動かす
+  render();
+  act({ action: "setStatus", id: b.dataset.made, status: b.dataset.to }, b.dataset.to === "ready" ? `${pad(o?.no)} できあがり` : `${pad(o?.no)} を作る方に戻しました`);
+});
 $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
   if (b) { tab = b.dataset.tab; render(); }
@@ -473,11 +485,22 @@ function card(o, btn) {
     ${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
     <div class="obody">
       <div class="ono">${pad(o.no)}</div>
-      <ul class="olist">${o.lines.map((l) => `<li><span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
+      <ul class="olist">${o.lines.map((l) => `<li>${temp(l)}<span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
       <div class="oneed">${need(o)}</div>
       ${ageBar(o)}
     </div>
     ${btn}
+  </article>`;
+}
+// アイス／ホットを色と記号で見分ける（「ホット」と書いてある商品だけホット。ほかは冷たい飲み物）
+const isHot = (l) => /ホット/.test(l.variant || "") || /ホット/.test(l.name || "");
+const temp = (l) => isHot(l) ? `<i class="tmp hot" title="ホット">ホット</i>` : `<i class="tmp ice" title="アイス">アイス</i>`;
+// 製造タブのカード：番号・受け取り時間・ドリンク（アイス／ホットを大きく）
+function makeCard(o, ready) {
+  return `<article class="mk-card ${ready ? "done" : ""}">
+    <div class="mk-top"><b class="mk-no">${pad(o.no)}</b><span class="mk-slot">${esc(o.slot || "今すぐ")}</span></div>
+    <ul class="mk-lines">${o.lines.map((l) => `<li>${temp(l)}${cupSVG({ ...l, color: byCode(l.code)?.color })}<span class="nm">${esc(lineName(l))}</span><b class="q">×${l.qty}</b></li>`).join("")}</ul>
+    ${ready ? `<button type="button" class="link-btn" data-made="${esc(o.id)}" data-to="new">作る方に戻す</button>` : `<button type="button" class="go mk-btn" data-made="${esc(o.id)}" data-to="ready">作った</button>`}
   </article>`;
 }
 const list = (arr, fn) => (arr.length ? arr.map(fn).join("") : `<div class="empty">なし</div>`);
@@ -502,7 +525,18 @@ function render() {
   $("state").className = "banner" + (st.open ? "" : " closed");
   $("state").textContent = st.open ? "受付中" : "受付停止中";
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
-  for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (tab === "admin") !== (p.dataset.panel === "admin") : p.dataset.panel !== tab;
+  if (!maker && tab === "make") tab = "kitchen";
+  $("tabs").querySelector('[data-tab="make"]').hidden = !maker;
+  const solo = tab === "admin" || tab === "make";   // パソコンでも、この2つは1つだけ大きく出す
+  for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (solo ? p.dataset.panel !== tab : ["admin", "make"].includes(p.dataset.panel)) : p.dataset.panel !== tab;
+  if (maker) {
+    // 受け取り時間の早い順（店頭の「今すぐ」が先）。「作った」を押すと「できあがり」へ移り、お客さんの画面にも「できあがり」と出る
+    const order = (a, b) => (a.slot || "00:00").localeCompare(b.slot || "00:00") || a.no - b.no;
+    const todo = waiting.filter((o) => o.status !== "ready").sort(order), ready = waiting.filter((o) => o.status === "ready").sort(order);
+    $("cMake").textContent = todo.length;
+    $("mkTodo").html = todo.length ? todo.map((o) => makeCard(o, false)).join("") : `<div class="empty">作るものはありません</div>`;
+    $("mkReady").html = ready.length ? ready.map((o) => makeCard(o, true)).join("") : `<div class="empty">なし</div>`;
+  }
   const unsent = queue.length;
   $("queueInfo").hidden = !unsent;
   $("queueInfo").textContent = `まだ送れていない受け渡し ${unsent}件（つながったら自動で送ります）`;
