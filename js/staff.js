@@ -396,6 +396,10 @@ async function counterOrder(type) {
   $("cErr").hidden = true;
   const btn = type === "student" ? $("cAsStu") : $("cAsGen");
   $("cAsStu").disabled = $("cAsGen").disabled = true;
+  // 押せたことが分かるように、押したボタンを「登録しています…」のままにする（終わったら番号の画面に変わる）
+  const label = btn.textContent;
+  btn.classList.add("busy");
+  btn.textContent = "登録しています…";
   counter.cid ||= newId();
   const payload = {
     asStaff: true, type, clientId: counter.cid,
@@ -422,11 +426,15 @@ async function counterOrder(type) {
       $("cErr").textContent = "通信できません。この注文は紙に書いて受け付けてください（つながったら、ワンタッチ注文のシートに入れる）";
       $("cErr").hidden = false;
     } else {
+      // サーバーが断った（売り切れなど）＝記録されていない。次は新しい番号で送る
+      counter.cid = null;
       $("cErr").textContent = { soldOut: "売り切れがあります", needSid: "学籍番号を7桁で入れてください" }[e.message] || "注文を入れられませんでした";
       $("cErr").hidden = false;
     }
   }
   ordering = false;
+  btn.classList.remove("busy");
+  btn.textContent = label;
   btn.disabled = false;
   renderCounterSheet();
 }

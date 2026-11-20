@@ -719,3 +719,7 @@ body.pc .mk-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 /* アイス／ホットは文字の色で見分ける */
 .t-hot { color: #d2462e !important; }
 .t-ice { color: #2f7fd0 !important; }
+/* 押したボタンは「登録しています…」のまま、色を保って回る印を出す（消えたり出たりしない） */
+.go.busy { position: relative; opacity: 1 !important; cursor: progress; padding-left: 40px; }
+.go.busy::before { content: ""; position: absolute; left: 16px; top: 50%; width: 14px; height: 14px; margin-top: -9px; border: 2.5px solid #ffffff88; border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
