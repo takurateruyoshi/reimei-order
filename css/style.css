@@ -693,24 +693,3 @@ html.has-ticket #menu:empty, html.has-ticket #loading { display: none; }
 @keyframes noticeIn { from { transform: translateY(-6px); opacity: 0; } }
 .notice-in { width: 100%; font: inherit; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: vertical; }
 .cur-notice { margin: 0; font-size: 12.5px; white-space: pre-wrap; }
-
-/* ---------- 落ち着いた見た目（白が基調・色は1色だけ） ---------- */
-:root {
-  --dawn: #2f5d8a; --dawn-soft: #eaf1f8;   /* 押すボタン・選択中の色：落ち着いた青 */
-  --sky: #2f5d8a; --sky-soft: #eef3f8;
-  --ok: #2f7a57; --ok-soft: #e8f3ed;
-  --line: #e6e8ec; --muted: #6a7080; --cream: #f7f8fa;
-  --f-display: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-}
-.brand b, h2, .dish-head h3, .big, .big-items b, .gh, .entry .price { font-family: var(--f-body); font-weight: 700; letter-spacing: .01em; }
-.brand small { color: var(--muted); }
-.card .pic, .ocard2 .opic { background: #f6f7f9; }
-.card { border-width: 1px; }
-.card .add { background: #fff; color: var(--dawn); border: 1.5px solid var(--dawn); }
-.card.on .add { background: var(--dawn); color: #fff; }
-.card .cnt, .tabs .count, .fab b, .modes b, .ocard2 .ocup b { background: var(--ink); }
-.gauge.mid i, .age.warn i { background: #c98a2b; }
-.banner { background: #f4f6f8; } .banner.closed { background: #fbeceb; }
-.notice { background: #fdf3f2; border-width: 1.5px; }
-.go { box-shadow: none; }
-.show-slot { color: var(--ink); }
