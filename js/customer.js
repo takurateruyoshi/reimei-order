@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, cachedState, watchRev, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
 import { pullToRefresh, esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
@@ -46,6 +46,21 @@ let token = savedToken();
 let orders = [];
 let tickets = [];
 try { tickets = JSON.parse(localStorage.getItem(TICKETS_KEY)) || []; } catch {}
+// 最後に読んだ自分の注文を覚えておき、開いた瞬間にQRを出す（最新の状態はそのあとに読み直す）。
+// QRに入っているのは注文IDだけなので、通信を待たずに出せる
+const ORDERS_KEY = "reimei-order-mine";
+const saveOrders = () => { try { localStorage.setItem(ORDERS_KEY, JSON.stringify(orders)); } catch {} };
+{
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(ORDERS_KEY)) || []; } catch {}
+  const ids = new Set(tickets.map((t) => t.id));
+  orders = saved.filter((o) => ids.has(o.id));
+  for (const t of tickets) if (!orders.some((o) => o.id === t.id)) orders.push({ id: t.id, no: null, status: "new", lines: [], loading: true });
+}
+// 受け渡しが済んだことを、お客さんの画面に大きく出す（同じ注文は1回だけ）
+const SHOWN_KEY = "reimei-order-done-shown";
+let doneShown = [];
+try { doneShown = JSON.parse(localStorage.getItem(SHOWN_KEY)) || []; } catch {}
 let lastReady = new Set();
 
 const toast = (msg) => {
@@ -106,7 +121,12 @@ async function scanCard() {
 async function pollTickets() {
   if (!tickets.length) { orders = []; renderTickets(); return; }
   try {
+    const before = new Map(orders.map((o) => [o.id, o.status]));
     orders = (await call("status", { tickets })).orders.sort((a, b) => b.no - a.no);
+    saveOrders();
+    // 待っていた注文が受け渡し済みになった → 完了の画面を出す
+    const fresh = orders.filter((o) => o.status === "done" && ["new", "making", "ready"].includes(before.get(o.id)) && !doneShown.includes(o.id));
+    if (fresh.length) showDone(fresh);
     // 受け取り済み・取消は少しだけ残して消す
     const keep = new Set(orders.filter((o) => o.status !== "cancel").slice(0, 5).map((o) => o.id));
     tickets = tickets.filter((t) => keep.has(t.id));
@@ -308,6 +328,7 @@ async function sendPending() {
   showSending("スプレッドシートに登録しています…");
   // 注文が集中しているときは中継で順番待ちになる（最大で数分）。待っていることを伝える
   const slowTimer = setTimeout(() => showSending("混み合っています。順番に登録しています（そのままお待ちください）"), 12000);
+  const sentItems = pending.items || [], sentSlot = pending.slot || "";
   try {
     const r = await call("order", pending);
     clearTimeout(slowTimer);
@@ -317,11 +338,17 @@ async function sendPending() {
     showSending(null);
     tickets.unshift({ id: r.id, secret: r.secret });
     try { localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets)); } catch {}
+    // 返事に入っている内容で、すぐにQRの画面を出す（最新の状態はこのあと読み直す）
+    orders = [{ id: r.id, no: r.no, status: "new", slot: sentSlot, total: r.total || 0, free: r.free || 0,
+      lines: sentItems.map((i) => { const m = byCode(i.code) || {}; return { code: i.code, name: m.name || i.code, variant: m.variant || "", qty: i.qty }; }) },
+      ...orders.filter((o) => o.id !== r.id)];
+    saveOrders();
     cart = {};
     if (me?.isStudent) me = { ...me, freeLeft: Math.max(0, me.freeLeft - (r.free || 0)) };
     mode = "ticket";
+    renderTickets();
     toast(`注文しました（呼び出し番号 ${pad(r.no)}）`);
-    scrollTo({ top: 0, behavior: "smooth" });
+    scrollTo({ top: 0 });
     await Promise.all([pollTickets(), loadMe(), loadState()]);
   } catch (e) {
     clearTimeout(slowTimer);
@@ -542,7 +569,7 @@ function renderTickets() {
       <p class="show-hint">この画面を店員さんに見せてね</p>
       <div class="show-top">
         ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
-        <div class="show-no"><small>呼び出し番号${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</small>${pad(o.no)}</div>
+        <div class="show-no"><small>呼び出し番号${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</small>${o.no == null ? "…" : pad(o.no)}</div>
       </div>
       <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="show-foot">
@@ -562,6 +589,25 @@ function renderTickets() {
   fitNames();
   applyMode();
 }
+
+function showDone(list) {
+  doneShown = [...list.map((o) => o.id), ...doneShown].slice(0, 20);
+  try { localStorage.setItem(SHOWN_KEY, JSON.stringify(doneShown)); } catch {}
+  try { navigator.vibrate?.([120, 80, 120]); } catch {}
+  $("doneNo").textContent = list.map((o) => pad(o.no)).join("・");
+  $("doneItems").html = list.flatMap((o) => o.lines).map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span>${esc(lineName(l))} ×${l.qty}</span></li>`).join("");
+  $("done").hidden = false;
+}
+$("doneClose").onclick = () => { $("done").hidden = true; };
+
+// QRを見せている間だけ、受け渡しが済んだかを確かめる。
+// 「更新番号」は中継サーバーが全員分をまとめて1回だけ問い合わせるので軽い。番号が変わったときだけ自分の注文を読み直す（6秒に1回まで）
+let lastStatusAt = 0;
+watchRev(async () => {
+  if (!activeCount || $("tickets").hidden || Date.now() - lastStatusAt < 6000) return;
+  lastStatusAt = Date.now();
+  await pollTickets();
+}, 3000);
 
 // 受け取り待ちの注文があるときは「受け取り」と「注文する」を切り替える（どちらも1画面に収める）
 let mode = null, activeCount = 0;

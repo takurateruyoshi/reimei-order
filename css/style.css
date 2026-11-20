@@ -667,3 +667,22 @@ body.staff.pc #main { grid-template-rows: auto minmax(0, 1fr); height: 100%; ali
 body.staff.pc #main > .staff-head, body.staff.pc #main > [data-panel="admin"] { grid-column: 1 / -1; }
 body.staff.pc [data-panel="counter"] { position: static; max-height: none; }
 body.staff .tabs { overflow-y: hidden; scrollbar-width: none; }
+
+/* お客さん：受け渡し完了の画面 */
+.done-bg { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .55); display: flex; align-items: center; justify-content: center; padding: 0 16px; animation: fadein .2s ease-out; }
+.done-box { background: var(--surface); border-radius: 20px; padding: 28px 22px 20px; width: min(360px, 100%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.done-box h2 { font-size: 24px; }
+.done-check { width: 84px; height: 84px; }
+.done-check circle { fill: #2f9e5b; transform-origin: center; animation: popin .35s ease-out both; }
+.done-check path { fill: none; stroke: #fff; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .4s .3s ease-out forwards; }
+.done-no { margin: 0; font-family: var(--f-num); font-size: 44px; line-height: 1; }
+.done-no small { display: block; font-family: var(--f-body); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.done-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; font-weight: 700; font-size: 14px; }
+.done-items li { display: flex; align-items: center; gap: 6px; }
+.done-items svg { width: 30px; height: 30px; }
+.done-thanks { margin: 0; color: var(--muted); font-size: 13px; }
+.done-box .go { margin-top: 6px; width: 100%; }
+@keyframes popin { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fadein { from { opacity: 0; } }
+html.has-ticket #menu:empty, html.has-ticket #loading { display: none; }
