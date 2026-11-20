@@ -1,7 +1,7 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
 import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { startQRStream, scanStudentCard } from "./scan.js";
-import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
+import { esc, pad, yen, lineName, tempCls, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 $("shop").textContent = SHOP_NAME;
@@ -485,21 +485,20 @@ function card(o, btn) {
     ${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
     <div class="obody">
       <div class="ono">${pad(o.no)}</div>
-      <ul class="olist">${o.lines.map((l) => `<li>${temp(l)}<span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
+      <ul class="olist">${o.lines.map((l) => `<li><span class="code">${esc(l.code)}</span>${nameHtml(l)}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
       <div class="oneed">${need(o)}</div>
       ${ageBar(o)}
     </div>
     ${btn}
   </article>`;
 }
-// アイス／ホットを色と記号で見分ける（「ホット」と書いてある商品だけホット。ほかは冷たい飲み物）
-const isHot = (l) => /ホット/.test(l.variant || "") || /ホット/.test(l.name || "");
-const temp = (l) => isHot(l) ? `<i class="tmp hot" title="ホット">ホット</i>` : `<i class="tmp ice" title="アイス">アイス</i>`;
+// 名前のうち「アイス」「ホット」の部分だけ文字の色を変える
+const nameHtml = (l) => esc(l.name) + (l.variant ? `（<span class="${tempCls(l.variant)}">${esc(l.variant)}</span>）` : "");
 // 製造タブのカード：番号・受け取り時間・ドリンク（アイス／ホットを大きく）
 function makeCard(o, ready) {
   return `<article class="mk-card ${ready ? "done" : ""}">
     <div class="mk-top"><b class="mk-no">${pad(o.no)}</b><span class="mk-slot">${esc(o.slot || "今すぐ")}</span></div>
-    <ul class="mk-lines">${o.lines.map((l) => `<li>${temp(l)}${cupSVG({ ...l, color: byCode(l.code)?.color })}<span class="nm">${esc(lineName(l))}</span><b class="q">×${l.qty}</b></li>`).join("")}</ul>
+    <ul class="mk-lines">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span class="nm">${nameHtml(l)}</span><b class="q">×${l.qty}</b></li>`).join("")}</ul>
     ${ready ? `<button type="button" class="link-btn" data-made="${esc(o.id)}" data-to="new">作る方に戻す</button>` : `<button type="button" class="go mk-btn" data-made="${esc(o.id)}" data-to="ready">作った</button>`}
   </article>`;
 }
@@ -557,7 +556,7 @@ function render() {
     const n = counter.cart[m.code] || 0;
     return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut ? "disabled" : ""}>
       <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
-      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn">${esc(m.variant || m.name)}</b></span>
+      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn ${tempCls(m.variant)}">${esc(m.variant || m.name)}</b></span>
       <span class="ft">${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : m.stock != null && !m.soldOut ? `<span class="left ${m.remaining <= 3 ? "low" : ""}">のこり${m.remaining}</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
     </button>`;
   }).join("")}</div>`;

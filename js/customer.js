@@ -2,7 +2,7 @@ import { SHOP_NAME } from "./config.js";
 import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
-import { pullToRefresh, esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
+import { pullToRefresh, esc, pad, yen, lineName, tempCls, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 const STEPS = [["new", "受付"], ["making", "作っています"], ["ready", "できあがり"]];
@@ -412,7 +412,7 @@ function render() {
     const n = cart[m.code] || 0;
     return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut || !st.open || st.snapshot ? "disabled" : ""}>
       <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
-      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn">${esc(m.variant || m.name)}</b></span>
+      <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn ${tempCls(m.variant)}">${esc(m.variant || m.name)}</b></span>
       <span class="ft">${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : m.stock != null && !m.soldOut ? `<span class="left ${m.remaining <= 3 ? "low" : ""}">のこり${m.remaining}</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>
     </button>`;
   }).join("")}</div>`;
@@ -558,7 +558,7 @@ function renderTickets() {
         ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
         <div class="show-no"><small>呼び出し番号${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</small>${o.no == null ? "…" : pad(o.no)}</div>
       </div>
-      <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span>${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
+      <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span class="${tempCls(l.variant)}">${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="show-foot">
         <div class="show-info">
           <div class="needs">${need}</div>

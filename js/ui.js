@@ -3,6 +3,8 @@ export const esc = (s) =>
 
 export const pad = (n) => String(n).padStart(3, "0");
 export const yen = (n) => "¥" + Number(n).toLocaleString();
+// アイス／ホットの文字に色を付けるためのクラス（「ホット」は赤、「アイス」は青。それ以外は色なし）
+export const tempCls = (v) => (/ホット/.test(v || "") ? "t-hot" : /アイス/.test(v || "") ? "t-ice" : "");
 export const lineName = (l) => l.name + (l.variant ? `（${l.variant}）` : "");
 
 // ドリンクのイラスト。m = { name, variant, color }。ホットはマグ＋湯気、それ以外はグラス＋氷。
