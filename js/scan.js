@@ -124,8 +124,10 @@ export async function scanOrderQR() {
 }
 
 // 画面の中に埋め込んで、QRをずっと読み続ける（スタッフ画面の「受け渡し」の上）。
-// 同じQRを続けて読んだときは、5秒間は2回目を無視する。止めるときは返り値の stop() を呼ぶ
-export async function startQRStream(box, onOrder) {
+// onCard を渡すと、学生証のバーコード（学籍番号）も読む。
+// 同じものを続けて読んだときは、5秒間は2回目を無視する。止めるときは返り値の stop() を呼ぶ
+const CARD_CROPS = [[0, 0.2, 1, 0.6], [0, 0, 1, 1]];
+export async function startQRStream(box, onOrder, onCard) {
   await loadZXing();
   if (typeof ZXing === "undefined" || !navigator.mediaDevices?.getUserMedia) return { error: "このスマホではカメラが使えません", stop() {} };
   let stream = null, timer = null, stopped = false, last = "", lastAt = 0;
@@ -149,11 +151,14 @@ export async function startQRStream(box, onOrder) {
   const tick = () => {
     if (stopped) return;
     if (video.videoWidth) {
-      const v = decodeOrderFrame(video, video.videoWidth, video.videoHeight);
+      const w = video.videoWidth, h = video.videoHeight;
+      const q = decodeOrderFrame(video, w, h);
+      const sid = !q && onCard ? decodeWith("CODABAR", parseCard, video, w, h, CARD_CROPS) : null;
+      const v = q || (sid && "card:" + sid);
       if (v && !(v === last && Date.now() - lastAt < 5000)) {
         last = v; lastAt = Date.now();
         try { navigator.vibrate?.(120); } catch {}
-        onOrder(v);
+        if (q) onOrder(q); else onCard(sid);
       }
     }
     timer = setTimeout(tick, 250);

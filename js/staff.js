@@ -174,20 +174,21 @@ $("colNew").addEventListener("click", async (e) => {
   }
   armed = null;
   clearTimeout(armTimer);
-  toast((await handOver(id)).msg);
+  toast((await handOver(id, "button")).msg);
 });
 
 // 受け渡しを記録する（「渡した」2回目・カメラでQRを読んだとき）。結果の文を返す
-async function handOver(id) {
+// via：どうやって渡したか（qr＝注文のQR／card＝学生証／button＝「渡した」）。スタッフ操作記録に残る
+async function handOver(id, via = "button") {
   // まだ送れていない店頭の注文（仮番号）は、この端末の中で受け渡し済みにする
   const lq = queue.find((x) => x.kind === "order" && "local:" + x.label === id);
-  if (lq) { lq.order.status = "done"; saveQueue(); render(); return { ok: true, o: lq.order, msg: `${lq.label} 受け渡し完了（つながったら記録します）` }; }
+  if (lq) { lq.order.status = "done"; lq.order.pickVia = via; saveQueue(); render(); return { ok: true, o: lq.order, msg: `${lq.label} 受け渡し完了（つながったら記録します）` }; }
   const o = orders.find((x) => x.id === id);
   const before = o?.status;
   if (o) o.status = "done";   // 先に一覧から消しておく
   render();
   try {
-    const r = await call("pickup", { staffKey: key, id });
+    const r = await call("pickup", { staffKey: key, id, via });
     const ro = { ...(o || {}), ...(r.order || {}) };
     lastSnap = "";
     refresh();
@@ -196,7 +197,7 @@ async function handOver(id) {
     return { ok: true, o: ro, msg: `${numLabel(ro)} 受け渡し完了` };
   } catch (e) {
     if (e.network) {
-      queue.push({ kind: "pickup", id });
+      queue.push({ kind: "pickup", id, via });
       saveQueue();
       render();
       return { ok: true, o, msg: `${numLabel(o)} 受け渡し完了（つながったら記録します）` };
@@ -210,7 +211,7 @@ async function handOver(id) {
 // ---------- 受け渡しの上のカメラ（開いている間ずっとQRを読む） ----------
 let cam = null, camBusy = false, camWant = true, camMsgTimer = null;
 try { camWant = localStorage.getItem("reimei-cam") !== "off"; } catch {}
-const CAM_IDLE = "お客さんのQRを枠に向けてください";
+const CAM_IDLE = "お客さんのQRか、学生証のバーコードを枠に向けてください";
 async function camSync() {
   const on = camWant && ordersLoaded && tab === "kitchen" && !document.hidden && !$("main").hidden;
   $("cam").classList.toggle("off", !camWant);
@@ -218,7 +219,7 @@ async function camSync() {
   if (on && !cam && !camBusy) {
     camBusy = true;
     $("camMsg").textContent = "カメラを準備しています…";
-    const c = await startQRStream($("cam"), onQR);
+    const c = await startQRStream($("cam"), onQR, onCard);
     camBusy = false;
     if (c.error) { $("camMsg").textContent = c.error; return; }
     cam = c;
@@ -230,11 +231,31 @@ async function camSync() {
     if (!camWant) $("camMsg").textContent = "カメラは止まっています";
   }
 }
+// 学生証のバーコードを読んだとき：その学籍番号のまだ渡していない注文を、全部受け渡し済みにする
+async function onCard(sid) {
+  const mine = [
+    ...orders.filter((o) => o.status !== "done" && o.status !== "cancel" && String(o.studentId || "") === sid),
+    ...queue.filter((x) => x.kind === "order" && x.order.status !== "done" && String(x.order.studentId || "") === sid).map((x) => x.order),
+  ];
+  if (!mine.length) return camShow(false, `学籍番号 ${sid.slice(0, 2)}…${sid.slice(-2)} の、まだ渡していない注文はありません`);
+  camShow(null, "記録しています…");
+  const rs = [];
+  for (const o of mine) rs.push(await handOver(o.id, "card"));
+  const ok = rs.filter((r) => r.ok);
+  const cash = ok.reduce((a, r) => a + (r.o?.total || 0), 0);
+  camShow(ok.length > 0, (ok.length ? ok.map((r) => numLabel(r.o)).join("・") + " 受け渡し完了" + (cash ? `　${yen(cash)}を受け取る` : "") : "") + rs.filter((r) => !r.ok).map((r) => "　" + r.msg).join(""));
+}
+function camShow(ok, msg) {
+  clearTimeout(camMsgTimer);
+  $("camMsg").className = "cam-msg" + (ok === null ? "" : ok ? " ok" : " ng");
+  $("camMsg").textContent = msg;
+  if (ok !== null) camMsgTimer = setTimeout(() => { $("camMsg").className = "cam-msg"; $("camMsg").textContent = CAM_IDLE; }, 5000);
+}
 async function onQR(id) {
   clearTimeout(camMsgTimer);
   $("camMsg").className = "cam-msg";
   $("camMsg").textContent = "記録しています…";
-  const r = await handOver(id);
+  const r = await handOver(id, "qr");
   const needs = r.ok && r.o ? [r.o.free ? "学生証を確認" : "", r.o.total ? `${yen(r.o.total)}を受け取る` : ""].filter(Boolean).join("・") : "";
   $("camMsg").className = "cam-msg " + (r.ok ? "ok" : "ng");
   $("camMsg").textContent = r.msg + (needs ? "　" + needs : "");
@@ -320,6 +341,7 @@ let sidTimer = null;
 $("cSid").addEventListener("input", () => {
   $("cSid").value = $("cSid").value.replace(/\D/g, "").slice(0, 7);
   counter.sid = $("cSid").value;
+  counter.sidVia = "typed";
   counter.freeLeft = null;
   renderCounterSheet();
   clearTimeout(sidTimer);
@@ -330,6 +352,7 @@ $("cScan").onclick = async () => {
   if (!r) return;
   if (r.error) return toast(r.error);
   $("cSid").value = counter.sid = r.studentId;
+  counter.sidVia = "scan";
   lookupSid();
 };
 async function lookupSid() {
@@ -354,7 +377,7 @@ async function counterOrder(type) {
   btn.disabled = true;
   const payload = {
     asStaff: true, type, clientId: newId(),
-    ...(type === "student" ? { studentId: counter.sid } : {}),
+    ...(type === "student" ? { studentId: counter.sid, sidVia: counter.sidVia || "typed" } : {}),
     items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
   };
   try {
@@ -430,13 +453,13 @@ async function flushQueue() {
         if (r) {
           labels[r.id] = x.label;
           save(LABEL_KEY, labels);
-          if (x.order.status === "done") queue.push({ kind: "pickup", id: r.id });
+          if (x.order.status === "done") queue.push({ kind: "pickup", id: r.id, via: x.order.pickVia });
           const warn = [r.overStock ? "在庫オーバー（売り切れ後に受けていた）" : "", r.overFree ? "無料はもう使われていた（本来は¥" + st.price + "）" : ""].filter(Boolean);
           if (warn.length) { alerts.push(`${x.label}（本番号 ${pad(r.no)}）：${warn.join("・")}`); save(ALERT_KEY, alerts); }
           toast(`${x.label} を送りました（本番号 ${pad(r.no)}）`);
         }
       } else {
-        try { await call("pickup", { staffKey: key, id: x.id }); }
+        try { await call("pickup", { staffKey: key, id: x.id, via: x.via, late: true }); }
         catch (e) { if (e.network) throw e; }
       }
       queue.shift();
