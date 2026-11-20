@@ -172,13 +172,6 @@ $("lines").addEventListener("click", (e) => {
 });
 $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) $("sheet").hidden = true; });
 
-$("tickets").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-cancel]");
-  if (!b) return;
-  const t = tickets.find((x) => x.id === b.dataset.cancel);
-  try { await call("cancel", t); toast("取り消しました"); } catch { toast("もう作り始めているので取り消せません"); }
-  pollTickets(); loadState(); loadMe();
-});
 
 // 受け取り時間：今より後の枠だけ選べる
 let slot = null, editTime = false;
@@ -580,7 +573,6 @@ function renderTickets() {
         </div>
         <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       </div>
-      ${o.status === "new" ? `<button class="link" type="button" data-cancel="${esc(o.id)}">注文を取り消す</button>` : ""}
     </article>`;
   }).join("");
   $("tickets").classList.toggle("many", active.length > 1);
