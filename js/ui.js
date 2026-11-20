@@ -100,19 +100,21 @@ Object.defineProperty(HTMLElement.prototype, "html", {
 export function pullToRefresh(onRefresh, blocked = () => false) {
   const el = document.getElementById("ptr"), PULL = 70;
   let y0 = null, dy = 0, busy = false;
+  // 中の一覧がスクロールされている間は引っぱり更新しない（画面全体は動かず一覧だけ動くページ用）
+  const scrolled = (t) => { for (let n = t; n && n !== document.body; n = n.parentElement) if (n.scrollTop > 0) return true; return scrollY > 0; };
   const set = (d) => {
     el.style.transform = `translate(-50%, ${Math.min(d, PULL + 20) - 50}px) rotate(${d * 4}deg)`;
     el.style.opacity = Math.min(1, d / PULL);
     el.classList.toggle("ready", d >= PULL);
   };
   addEventListener("touchstart", (e) => {
-    if (busy || scrollY > 0 || blocked() || e.touches.length !== 1) return;
+    if (busy || scrolled(e.target) || blocked() || e.touches.length !== 1) return;
     y0 = e.touches[0].clientY; dy = 0;
   }, { passive: true });
   addEventListener("touchmove", (e) => {
     if (y0 === null) return;
     dy = Math.max(0, (e.touches[0].clientY - y0) * 0.5);
-    if (scrollY > 0) { y0 = null; dy = 0; }
+    if (scrolled(e.target)) { y0 = null; dy = 0; }
     set(dy);
   }, { passive: true });
   addEventListener("touchend", async () => {

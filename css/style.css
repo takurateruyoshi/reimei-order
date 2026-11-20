@@ -637,3 +637,33 @@ body.pc .ocards { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); 
 .cam.off .cam-msg { position: static; background: none; color: var(--muted); padding: 10px 120px 10px 12px; }
 .handoff-note { margin: 0; font-size: 12.5px; }
 body.pc .cam { height: 260px; }
+
+/* ---- 圏外のとき：残りの数がいつの時点か／つながったあとの要確認 ---- */
+.stock-note { margin: 0; background: var(--mid-soft, #fbefd6); color: #6b4300; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; }
+.off-alerts { background: #fdecea; border: 1.5px solid var(--danger); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.off-alerts ul { margin: 6px 0; padding-left: 1.2em; }
+body.pc #main > .off-alerts { grid-column: 1 / -1; }
+
+/* スタッフ画面：上（受付中・タブ）は固定。動くのは一覧だけ */
+html:has(body.staff) { height: 100%; overflow: hidden; }
+body.staff { height: 100dvh; overflow: hidden; padding-bottom: env(safe-area-inset-bottom, 0px); overscroll-behavior: none; }
+body.staff .wrap.wide { height: 100%; gap: 10px; }
+body.staff .top { flex: none; padding-top: 10px; }
+body.staff .top #state { order: -1; padding: 5px 12px; border-radius: 999px; font-size: 14px; white-space: nowrap; }
+body.staff .top #state::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #2f9e5b; flex: none; animation: live 1.6s ease-in-out infinite; }
+body.staff .top #state.closed::before { background: var(--danger); animation: none; }
+@keyframes live { 50% { opacity: .25; } }
+body.staff .top .brand b { font-size: 16px; }
+body.staff .demo { flex: none; }
+body.staff #main { flex: 1; min-height: 0; gap: 10px !important; }
+body.staff .staff-head { flex: none; display: flex; flex-direction: column; gap: 8px; }
+body.staff #main > [data-panel] { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+body.staff #main > [data-panel="kitchen"] { overflow: hidden; display: flex; }
+body.staff [data-panel="kitchen"] .cam, body.staff .handoff-note { flex: none; position: relative; top: auto; }
+body.staff #colNew { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 16px; }
+body.staff:not(.pc) #main > [data-panel="counter"] { padding-bottom: 110px; }
+body.staff:not(.pc) #main > [data-panel="admin"] { padding-bottom: 24px; }
+body.staff.pc #main { grid-template-rows: auto minmax(0, 1fr); height: 100%; align-items: stretch; }
+body.staff.pc #main > .staff-head, body.staff.pc #main > [data-panel="admin"] { grid-column: 1 / -1; }
+body.staff.pc [data-panel="counter"] { position: static; max-height: none; }
+body.staff .tabs { overflow-y: hidden; scrollbar-width: none; }

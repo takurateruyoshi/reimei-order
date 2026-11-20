@@ -44,19 +44,24 @@ const VID = (() => {
   } catch { return ""; }
 })();
 let relayOffUntil = 0;
+// スタッフの店頭注文は、目の前のお客さんを待たせないよう、中継12秒・直接12秒で見切る（だめなら仮番号に切り替える）
+const STAFF_WAIT = 12000;
 async function post(action, payload) {
   const body = JSON.stringify({ action, ...payload, vid: VID });
+  const staffOrder = action === "order" && payload.asStaff;
+  const wait = staffOrder ? STAFF_WAIT : RELAY_WAIT[action] || 30000;
+  const direct = staffOrder ? STAFF_WAIT : 30000;
   if (RELAY_URL && Date.now() > relayOffUntil) {
     try {
-      return await send(RELAY_URL, body, RELAY_WAIT[action] || 30000);
+      return await send(RELAY_URL, body, wait);
     } catch (e) {
-      if (e.name === "AbortError" && RELAY_WAIT[action]) return { error: "混み合っています（lock）" };
-      const d = await send(API_URL, body, 30000);   // ここでも届かなければ電波がない（中継のせいではない）
+      if (e.name === "AbortError" && RELAY_WAIT[action] && !staffOrder) return { error: "混み合っています（lock）" };
+      const d = await send(API_URL, body, direct);   // ここでも届かなければ電波がない（中継のせいではない）
       relayOffUntil = Date.now() + 120000;
       return d;
     }
   }
-  return send(API_URL, body, 30000);
+  return send(API_URL, body, direct);
 }
 async function send(url, body, ms) {
   const ctrl = new AbortController();
@@ -308,7 +313,8 @@ async function demoCall(action, p) {
       if (!byStaff && cups((r) => r.slot === p.slot) + totalQty > cap.slotCap) fail("slotFull");
       for (const i of items) {
         const m = menu[i.code];
-        if (!m || m.soldOut || (m.remaining !== null && m.remaining < i.qty)) fail("soldOut");
+        if (!m) fail("soldOut");
+        if (!p.offline && (m.soldOut || (m.remaining !== null && m.remaining < i.qty))) fail("soldOut");
       }
       // モバイルは 1〜、店頭は 1001〜（本番の Apps Script と同じ）
       const no = Math.max(byStaff ? 1000 : 0, ...s.rows.filter((r) => r.day === c.day && (r.no > 1000) === byStaff).map((r) => r.no)) + 1;

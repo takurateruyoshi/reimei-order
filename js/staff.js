@@ -25,6 +25,13 @@ const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 let queue = load(Q_KEY, []);          // { kind: "order", label, payload, order } | { kind: "pickup", id }
 let labels = load(LABEL_KEY, {});     // 本番の注文ID → 仮番号
+const ALERT_KEY = "reimei-staff-alerts", LASTOK_KEY = "reimei-staff-lastok";
+let alerts = load(ALERT_KEY, []);     // つながったあとに分かった「要確認」（在庫オーバー・無料の使用済み・送れなかった注文）
+const hhmmOf = (t) => (t ? new Date(t).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "—");
+// 仮番号で受けてまだ送っていない分を、最後に確認できた残りの数から引く
+const pendingQty = (code) => queue.filter((x) => x.kind === "order").reduce((a, x) => a + x.payload.items.filter((i) => i.code === code).reduce((b, i) => b + i.qty, 0), 0);
+const remainingOf = (m) => (m?.remaining == null ? null : Math.max(0, m.remaining - pendingQty(m.code)));
+const viewOf = (m) => { const r = remainingOf(m); return { ...m, remaining: r, soldOut: m.soldOut || r === 0 }; };
 const saveQueue = () => save(Q_KEY, queue);
 // 端末ごとの記号（A〜Z、まぎらわしい I・O は使わない）。圏外の間に2台で受けても仮番号がかぶらないように「オK1」のように付ける
 let DEV = (() => {
@@ -75,6 +82,7 @@ async function enter() {
     $("who").html = `<span>${esc(email)}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     apply(r);
+    save(LASTOK_KEY, Date.now());
     $("main").classList.remove("loading");
     startAuto();
     // 最新にするのは「下に引っぱったとき」と「アプリに戻ってきたとき」だけ。
@@ -137,6 +145,7 @@ async function refresh() {
   try {
     await flushQueue();
     apply(await call("staffList", { staffKey: key }));
+    save(LASTOK_KEY, Date.now());
     $("netOff").hidden = true;
   } catch (e) {
     if (e.network) $("netOff").hidden = false;
@@ -286,7 +295,8 @@ $("cCodes").addEventListener("click", (e) => {
     counter.cart[code] = Math.max(0, (counter.cart[code] || 0) - 1);
     if (!counter.cart[code]) delete counter.cart[code];
   } else {
-    if (m?.remaining !== null && m?.remaining !== undefined && (counter.cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
+    const left = remainingOf(m);
+    if (left !== null && (counter.cart[code] || 0) >= left) return toast(queue.length ? `${hhmmOf(load(LASTOK_KEY, 0))}時点の残りでは、これ以上ありません` : "これ以上は残っていません");
     counter.cart[code] = (counter.cart[code] || 0) + 1;
     if (isPC()) $("cDone").hidden = true;   // 次の注文に入ったら、前の番号の表示は消す
   }
@@ -349,6 +359,7 @@ async function counterOrder(type) {
   };
   try {
     if (queue.some((x) => x.kind === "order")) throw Object.assign(new Error("queued"), { network: true });   // 先に貯まっている分を追い越さない
+    if (navigator.onLine === false) throw Object.assign(new Error("offline"), { network: true });          // 端末がネットなしと分かっているときは待たない
     const r = await call("order", { ...payload, staffKey: key });
     resetCounter();
     $("cDone").hidden = false;
@@ -358,14 +369,27 @@ async function counterOrder(type) {
     lastSnap = "";
     refresh();
   } catch (e) {
-    if (e.network) {
-      // 通信できない：この端末に貯めて、仮番号をお客さんに伝える
+    if (e.busy) {
+      // サーバーが混んでいるだけ（ネットは切れていない）。仮番号にはせず、押し直してもらう
+      $("cErr").textContent = "混み合っています。少し待ってもう一度押してください";
+      $("cErr").hidden = false;
+    } else if (e.network) {
+      // 通信できない：最後に確認できた残りで足りるか確かめてから、この端末に貯めて、仮番号をお客さんに伝える
+      const short = payload.items.find((i) => { const m = byCode(i.code); const r = remainingOf(m); return m?.soldOut || (r !== null && r < i.qty); });
+      if (short) {
+        $("cErr").textContent = `${lineName(byCode(short.code))} は、${hhmmOf(load(LASTOK_KEY, 0))}時点の残りでは足りません`;
+        $("cErr").hidden = false;
+        btn.disabled = false;
+        return;
+      }
       const seq = load(SEQ_KEY, 0) + 1;
       save(SEQ_KEY, seq);
       const label = "オ" + DEV + seq;
       const q = payload.items.reduce((a, i) => a + i.qty, 0);
-      const free = type === "student" ? Math.min(counter.freeLeft ?? st.freeLimit ?? 1, q) : 0;
+      const freeKnown = counter.freeLeft !== null && counter.freeLeft !== undefined;   // 圏外だと学籍番号の無料の残りが分からないことが多い
+      const free = type === "student" ? Math.min(freeKnown ? counter.freeLeft : (st.freeLimit ?? 1), q) : 0;
       const total = (q - free) * st.price;
+      Object.assign(payload, { offline: true, offlineLabel: label, ...(type === "student" ? { offlineFree: free } : {}) });
       queue.push({ kind: "order", label, payload, order: {
         id: "local:" + label, label, no: 0, time: Date.now(), type, byStaff: true, status: "new", slot: "", free, total,
         studentId: counter.sid, lines: payload.items.map((i) => ({ code: i.code, name: byCode(i.code)?.name, variant: byCode(i.code)?.variant, qty: i.qty })),
@@ -373,7 +397,7 @@ async function counterOrder(type) {
       saveQueue();
       resetCounter();
       $("cDone").hidden = false;
-      $("cDone").html = `<div class="show-no"><small>呼び出し番号（仮）</small>${label}</div><small class="muted">通信が戻ったら自動で送ります</small>${free ? `<div class="need-big id">無料 ${free}杯（学生証を確認）</div>` : ""}${total ? `<div class="need-big cash">${yen(total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
+      $("cDone").html = `<div class="show-no"><small>呼び出し番号（仮）</small>${label}</div><small class="muted">通信が戻ったら自動で送ります</small>${free ? `<div class="need-big id">無料 ${free}杯（学生証を確認）${freeKnown ? "" : "<br><small>無料は仮。つながったあと、もう使われていたら知らせます</small>"}</div>` : ""}${total ? `<div class="need-big cash">${yen(total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
       $("cAgain").onclick = cClose;
       render();
     } else {
@@ -398,13 +422,17 @@ async function flushQueue() {
         try { r = await call("order", { ...x.payload, staffKey: key }); }
         catch (e) {
           if (e.network) throw e;
-          toast(`${x.label} を送れませんでした（${e.message}）。スプレッドシートに書いてください`);
+          // 送れなかった注文も消えたままにしない：「要確認」に残す
+          alerts.push(`${x.label}（${x.payload.items.map((i) => lineName(byCode(i.code) || { name: i.code }) + "×" + i.qty).join("・")}）を送れませんでした（${e.message}）。スプレッドシートに手で書いてください`);
+          save(ALERT_KEY, alerts);
           r = null;
         }
         if (r) {
           labels[r.id] = x.label;
           save(LABEL_KEY, labels);
           if (x.order.status === "done") queue.push({ kind: "pickup", id: r.id });
+          const warn = [r.overStock ? "在庫オーバー（売り切れ後に受けていた）" : "", r.overFree ? "無料はもう使われていた（本来は¥" + st.price + "）" : ""].filter(Boolean);
+          if (warn.length) { alerts.push(`${x.label}（本番号 ${pad(r.no)}）：${warn.join("・")}`); save(ALERT_KEY, alerts); }
           toast(`${x.label} を送りました（本番号 ${pad(r.no)}）`);
         }
       } else {
@@ -489,6 +517,12 @@ function render() {
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (tab === "admin") !== (p.dataset.panel === "admin") : p.dataset.panel !== tab;
   const unsent = queue.length;
+  const offlineNow = unsent > 0 || !$("netOff").hidden;
+  $("stockNote").hidden = !offlineNow;
+  $("stockNote").textContent = `残りの数は ${hhmmOf(load(LASTOK_KEY, 0))} 時点のものです（仮番号で受けた分は引いてあります）`;
+  $("offAlerts").hidden = !alerts.length;
+  $("offAlerts").html = alerts.length ? `<b>要確認（圏外で受けた注文）</b><ul>${alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul><button type="button" class="link-btn" id="alertsOk">確認した（消す）</button>` : "";
+  $("alertsOk")?.addEventListener("click", () => { alerts = []; save(ALERT_KEY, alerts); render(); });
   $("queueInfo").hidden = !unsent;
   $("queueInfo").textContent = `まだ送れていない操作 ${unsent}件（つながったら自動で送ります）／この端末の仮番号は「オ${DEV}」`;
   $("cKitchen").textContent = waiting.length;
@@ -504,7 +538,7 @@ function render() {
 
   // 店頭で注文
   // お客さん画面と同じカード（3列）
-  $("cCodes").html = `<div class="cards">${st.menu.map((m) => {
+  $("cCodes").html = `<div class="cards">${st.menu.map(viewOf).map((m) => {
     const n = counter.cart[m.code] || 0;
     return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut ? "disabled" : ""}>
       <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
@@ -534,7 +568,7 @@ function render() {
   for (const b of $("daySeg").children) b.setAttribute("aria-pressed", Number(b.dataset.day) === st.day);
   $("openSw").setAttribute("aria-checked", !!st.open);
   $("openLabel").textContent = st.open ? "受付中（お客さんが注文できます）" : "受付停止中";
-  $("soldOut").html = st.menu.map((m) => `<div class="row">${cupSVG(m)}<span class="code">${esc(m.code)}</span>
+  $("soldOut").html = st.menu.map(viewOf).map((m) => `<div class="row">${cupSVG(m)}<span class="code">${esc(m.code)}</span>
     <span style="flex:1;min-width:0">${esc(lineName(m))} ${m.remaining !== null ? `<small class="muted">のこり${m.remaining}</small>` : ""}${stockGauge(m)}</span>
     <button class="switch" role="switch" aria-checked="${!m.soldOut}" data-sold="${m.code}" aria-label="${esc(lineName(m))} 販売中"></button></div>`).join("");
 
