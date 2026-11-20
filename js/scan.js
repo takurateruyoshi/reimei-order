@@ -122,3 +122,42 @@ export async function scanOrderQR() {
   });
   return r && (r.value ? { orderId: r.value } : r);
 }
+
+// 画面の中に埋め込んで、QRをずっと読み続ける（スタッフ画面の「受け渡し」の上）。
+// 同じQRを続けて読んだときは、5秒間は2回目を無視する。止めるときは返り値の stop() を呼ぶ
+export async function startQRStream(box, onOrder) {
+  await loadZXing();
+  if (typeof ZXing === "undefined" || !navigator.mediaDevices?.getUserMedia) return { error: "このスマホではカメラが使えません", stop() {} };
+  let stream = null, timer = null, stopped = false, last = "", lastAt = 0;
+  const stop = () => {
+    stopped = true;
+    clearTimeout(timer);
+    stream?.getTracks().forEach((t) => t.stop());
+    box.querySelector("video")?.remove();
+  };
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } }, audio: false });
+  } catch {
+    return { error: "カメラを使えませんでした。ブラウザの設定でカメラを許可してください", stop };
+  }
+  if (stopped) { stream.getTracks().forEach((t) => t.stop()); return { stop }; }
+  const video = document.createElement("video");
+  video.setAttribute("playsinline", ""); video.muted = true; video.autoplay = true;
+  box.prepend(video);
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+  const tick = () => {
+    if (stopped) return;
+    if (video.videoWidth) {
+      const v = decodeOrderFrame(video, video.videoWidth, video.videoHeight);
+      if (v && !(v === last && Date.now() - lastAt < 5000)) {
+        last = v; lastAt = Date.now();
+        try { navigator.vibrate?.(120); } catch {}
+        onOrder(v);
+      }
+    }
+    timer = setTimeout(tick, 250);
+  };
+  tick();
+  return { stop };
+}

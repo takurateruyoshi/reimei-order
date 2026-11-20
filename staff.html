@@ -40,10 +40,12 @@
     </nav>
 
     <section data-panel="kitchen" class="col">
-      <div class="handoff-head">
-        <p class="muted">上から順に作り、渡したら「渡した」を2回押すか、お客さんのQRを読み取ってください</p>
-        <button class="link-btn" type="button" id="scanQR">QRを読む</button>
+      <div class="cam" id="cam">
+        <div class="scan-frame square"></div>
+        <div class="cam-msg" id="camMsg">カメラを準備しています…</div>
+        <button class="cam-tog" type="button" id="camTog">カメラを止める</button>
       </div>
+      <p class="muted handoff-note">お客さんのQRをカメラに向けると受け渡し完了。カメラが使えないときは「渡した」を2回押す</p>
       <div class="col" id="colNew"><div class="ocard sk-card"></div><div class="ocard sk-card"></div><div class="ocard sk-card"></div></div>
     </section>
 

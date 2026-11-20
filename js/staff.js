@@ -1,6 +1,6 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
 import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
-import { scanOrderQR, scanStudentCard } from "./scan.js";
+import { startQRStream, scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -165,35 +165,78 @@ $("colNew").addEventListener("click", async (e) => {
   }
   armed = null;
   clearTimeout(armTimer);
+  toast((await handOver(id)).msg);
+});
+
+// 受け渡しを記録する（「渡した」2回目・カメラでQRを読んだとき）。結果の文を返す
+async function handOver(id) {
   // まだ送れていない店頭の注文（仮番号）は、この端末の中で受け渡し済みにする
   const lq = queue.find((x) => x.kind === "order" && "local:" + x.label === id);
-  if (lq) { lq.order.status = "done"; saveQueue(); toast(`${lq.label} 受け渡し完了（つながったら記録します）`); return render(); }
+  if (lq) { lq.order.status = "done"; saveQueue(); render(); return { ok: true, o: lq.order, msg: `${lq.label} 受け渡し完了（つながったら記録します）` }; }
   const o = orders.find((x) => x.id === id);
+  const before = o?.status;
   if (o) o.status = "done";   // 先に一覧から消しておく
   render();
   try {
     const r = await call("pickup", { staffKey: key, id });
-    toast(r.result === "already" ? "もう受け渡し済みでした" : `${numLabel(o)} 受け渡し完了`);
+    const ro = { ...(o || {}), ...(r.order || {}) };
+    lastSnap = "";
+    refresh();
+    if (r.result === "cancel") return { ok: false, o: ro, msg: `${numLabel(ro)} は取り消された注文です` };
+    if (r.result === "already") return { ok: false, o: ro, msg: `${numLabel(ro)} はもう受け渡し済みです` };
+    return { ok: true, o: ro, msg: `${numLabel(ro)} 受け渡し完了` };
   } catch (e) {
     if (e.network) {
       queue.push({ kind: "pickup", id });
       saveQueue();
-      toast(`${numLabel(o)} 受け渡し完了（つながったら記録します）`);
-      return render();
+      render();
+      return { ok: true, o, msg: `${numLabel(o)} 受け渡し完了（つながったら記録します）` };
     }
-    if (o) o.status = "new";
-    toast("記録できませんでした。もう一度押してください");
+    if (o) o.status = before || "new";
+    render();
+    return { ok: false, o, msg: e.message === "notFound" ? "この注文は見つかりません" : "記録できませんでした。もう一度読み取ってください" };
   }
-  lastSnap = "";
-  refresh();
-});
-// アプリの中でカメラを開いてお客さんのQRを読み、受け渡しの画面へ
-$("scanQR").onclick = async () => {
-  const r = await scanOrderQR();
-  if (!r) return;
-  if (r.error) return toast(r.error);
-  location.href = `pickup.html?o=${encodeURIComponent(r.orderId)}${DEMO ? "&demo" : ""}`;
+}
+
+// ---------- 受け渡しの上のカメラ（開いている間ずっとQRを読む） ----------
+let cam = null, camBusy = false, camWant = true, camMsgTimer = null;
+try { camWant = localStorage.getItem("reimei-cam") !== "off"; } catch {}
+const CAM_IDLE = "お客さんのQRを枠に向けてください";
+async function camSync() {
+  const on = camWant && ordersLoaded && tab === "kitchen" && !document.hidden && !$("main").hidden;
+  $("cam").classList.toggle("off", !camWant);
+  $("camTog").textContent = camWant ? "カメラを止める" : "カメラをつける";
+  if (on && !cam && !camBusy) {
+    camBusy = true;
+    $("camMsg").textContent = "カメラを準備しています…";
+    const c = await startQRStream($("cam"), onQR);
+    camBusy = false;
+    if (c.error) { $("camMsg").textContent = c.error; return; }
+    cam = c;
+    $("camMsg").textContent = CAM_IDLE;
+    camSync();   // 準備している間に別のタブへ移っていたら止める
+  } else if (!on && cam) {
+    cam.stop();
+    cam = null;
+    if (!camWant) $("camMsg").textContent = "カメラは止まっています";
+  }
+}
+async function onQR(id) {
+  clearTimeout(camMsgTimer);
+  $("camMsg").className = "cam-msg";
+  $("camMsg").textContent = "記録しています…";
+  const r = await handOver(id);
+  const needs = r.ok && r.o ? [r.o.free ? "学生証を確認" : "", r.o.total ? `${yen(r.o.total)}を受け取る` : ""].filter(Boolean).join("・") : "";
+  $("camMsg").className = "cam-msg " + (r.ok ? "ok" : "ng");
+  $("camMsg").textContent = r.msg + (needs ? "　" + needs : "");
+  camMsgTimer = setTimeout(() => { $("camMsg").className = "cam-msg"; $("camMsg").textContent = CAM_IDLE; }, 5000);
+}
+$("camTog").onclick = () => {
+  camWant = !camWant;
+  try { localStorage.setItem("reimei-cam", camWant ? "on" : "off"); } catch {}
+  camSync();
 };
+document.addEventListener("visibilitychange", () => camSync());
 $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
   if (b) { tab = b.dataset.tab; render(); }
@@ -483,6 +526,8 @@ function render() {
     $("cCount").textContent = `${cq}杯`;
   }
   renderCounterSheet();
+
+  camSync();
 
   // 管理
   $("devMark").textContent = "オ" + DEV + "1, オ" + DEV + "2 …";
