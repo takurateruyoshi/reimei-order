@@ -381,17 +381,24 @@ async function lookupSid() {
   renderCounterSheet();
 }
 function resetCounter() {
+  counter.cid = null;
   counter.cart = {};
   counter.sid = "";
   counter.freeLeft = null;
   $("cSid").value = "";
 }
+// 注文を送っている間は、もう一度押せないようにする（学籍番号の確認の返事で、ボタンが押せる状態に戻らないように）。
+// 同じ注文には同じ番号（clientId）を付けるので、万一2回届いても1件として記録される
+let ordering = false;
 async function counterOrder(type) {
+  if (ordering) return;
+  ordering = true;
   $("cErr").hidden = true;
   const btn = type === "student" ? $("cAsStu") : $("cAsGen");
-  btn.disabled = true;
+  $("cAsStu").disabled = $("cAsGen").disabled = true;
+  counter.cid ||= newId();
   const payload = {
-    asStaff: true, type, clientId: newId(),
+    asStaff: true, type, clientId: counter.cid,
     ...(type === "student" ? { studentId: counter.sid, sidVia: counter.sidVia || "typed" } : {}),
     items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
   };
@@ -419,6 +426,7 @@ async function counterOrder(type) {
       $("cErr").hidden = false;
     }
   }
+  ordering = false;
   btn.disabled = false;
   renderCounterSheet();
 }
@@ -460,8 +468,8 @@ function renderCounterSheet() {
   $("cLines").html = !q ? `<li class="muted">メニューの商品を押すと、ここに入ります</li>` : lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   $("cGenPrice").textContent = yen(q * st.price);
   const ok = /^\d{7}$/.test(counter.sid || "");
-  $("cAsStu").disabled = !ok || !q;
-  $("cAsGen").disabled = !q;
+  $("cAsStu").disabled = ordering || !ok || !q;
+  $("cAsGen").disabled = ordering || !q;
   if (!ok) $("cSidInfo").textContent = "学籍番号を入れると無料の杯数が出ます";
   else if (counter.freeLeft !== null && counter.freeLeft !== undefined) {
     const free = Math.min(counter.freeLeft, q), pay = (q - free) * st.price;

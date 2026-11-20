@@ -285,6 +285,7 @@ $("closeT").onclick = () => ($("tsheet").hidden = true);
 $("tsheet").addEventListener("click", (e) => { if (e.target === $("tsheet")) $("tsheet").hidden = true; });
 
 async function placeOrder(asStudent) {
+  if (pending || sending) return;   // 送っている途中にもう一度押しても、2つ目の注文は作らない
   if (!slot || !openSlots().includes(slot)) {
     $("sheetErr").textContent = "受け取り時間を選んでください";
     $("sheetErr").hidden = false;
