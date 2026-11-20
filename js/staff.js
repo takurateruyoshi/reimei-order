@@ -18,27 +18,16 @@ const pcMQ = matchMedia("(min-width: 1100px)");
 const isPC = () => pcMQ.matches;
 pcMQ.addEventListener("change", () => render());
 
-// 通信できないあいだの店頭の注文・受け渡しは、この端末に貯めておき、つながったら順に送る。
-// 店頭の注文には「オ1, オ2…」の仮番号を付けてお客さんに伝える（つながったあと本番号と並べて出す）
-const Q_KEY = "reimei-staff-queue", SEQ_KEY = "reimei-staff-offseq", LABEL_KEY = "reimei-staff-labels", LAST_KEY = "reimei-staff-last";
+// 通信できないあいだの受け渡しの記録は、この端末に貯めておき、つながったら順に送る。
+// 店頭の注文は、通信できないときは受けない（紙で受け付けてもらう）
+const Q_KEY = "reimei-staff-queue", LAST_KEY = "reimei-staff-last";
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-let queue = load(Q_KEY, []);          // { kind: "order", label, payload, order } | { kind: "pickup", id }
-let labels = load(LABEL_KEY, {});     // 本番の注文ID → 仮番号
-const ALERT_KEY = "reimei-staff-alerts", LASTOK_KEY = "reimei-staff-lastok";
-let alerts = load(ALERT_KEY, []);     // つながったあとに分かった「要確認」（在庫オーバー・無料の使用済み・送れなかった注文）
-const hhmmOf = (t) => (t ? new Date(t).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) : "—");
-// 仮番号で受けてまだ送っていない分を、最後に確認できた残りの数から引く
-const pendingQty = (code) => queue.filter((x) => x.kind === "order").reduce((a, x) => a + x.payload.items.filter((i) => i.code === code).reduce((b, i) => b + i.qty, 0), 0);
-const remainingOf = (m) => (m?.remaining == null ? null : Math.max(0, m.remaining - pendingQty(m.code)));
-const viewOf = (m) => { const r = remainingOf(m); return { ...m, remaining: r, soldOut: m.soldOut || r === 0 }; };
+let queue = load(Q_KEY, []).filter((x) => x.kind === "pickup");   // { kind: "pickup", id, via }
+const LASTOK_KEY = "reimei-staff-lastok";
+const remainingOf = (m) => (m?.remaining == null ? null : m.remaining);
+const viewOf = (m) => m;
 const saveQueue = () => save(Q_KEY, queue);
-// 端末ごとの記号（A〜Z、まぎらわしい I・O は使わない）。圏外の間に2台で受けても仮番号がかぶらないように「オK1」のように付ける
-let DEV = (() => {
-  let d = load("reimei-staff-dev", "");
-  if (!d) { const L = "ABCDEFGHJKLMNPQRSTUVWXYZ"; d = L[Math.floor(Math.random() * L.length)]; save("reimei-staff-dev", d); }
-  return d;
-})();
 
 const toast = (msg) => {
   const t = $("toast");
@@ -182,9 +171,6 @@ $("colNew").addEventListener("click", async (e) => {
 // 受け渡しを記録する（「渡した」2回目・カメラでQRを読んだとき）。結果の文を返す
 // via：どうやって渡したか（qr＝注文のQR／card＝学生証／button＝「渡した」）。スタッフ操作記録に残る
 async function handOver(id, via = "button") {
-  // まだ送れていない店頭の注文（仮番号）は、この端末の中で受け渡し済みにする
-  const lq = queue.find((x) => x.kind === "order" && "local:" + x.label === id);
-  if (lq) { lq.order.status = "done"; lq.order.pickVia = via; saveQueue(); render(); return { ok: true, o: lq.order, msg: `${lq.label} 受け渡し完了（つながったら記録します）` }; }
   const o = orders.find((x) => x.id === id);
   const before = o?.status;
   if (o) o.status = "done";   // 先に一覧から消しておく
@@ -235,10 +221,7 @@ async function camSync() {
 }
 // 学生証のバーコードを読んだとき：その学籍番号のまだ渡していない注文を、全部受け渡し済みにする
 async function onCard(sid) {
-  const mine = [
-    ...orders.filter((o) => o.status !== "done" && o.status !== "cancel" && String(o.studentId || "") === sid),
-    ...queue.filter((x) => x.kind === "order" && x.order.status !== "done" && String(x.order.studentId || "") === sid).map((x) => x.order),
-  ];
+  const mine = orders.filter((o) => o.status !== "done" && o.status !== "cancel" && String(o.studentId || "") === sid);
   if (!mine.length) return camShow(false, `学籍番号 ${sid.slice(0, 2)}…${sid.slice(-2)} の、まだ渡していない注文はありません`);
   camShow(null, "記録しています…");
   const rs = [];
@@ -289,13 +272,6 @@ $("daySeg").addEventListener("click", (e) => {
   render();
   act({ action: "setConfig", day: st.day }, `${st.day}日目にしました`);
 });
-// 圏外のときの仮番号の記号を変える（パソコンを2台使うときに、ほかの端末と違う記号にする）
-if ($("devNext")) $("devNext").onclick = () => {
-  const L = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  DEV = L[(L.indexOf(DEV) + 1) % L.length];
-  save("reimei-staff-dev", DEV);
-  render();
-};
 // 緊急連絡：お客さん向け（guest）とスタッフ向け（staff）を別々に出す／消す
 let staffNotice = "";
 async function sendNotice(kind, text) {
@@ -344,7 +320,7 @@ $("cCodes").addEventListener("click", (e) => {
     if (!counter.cart[code]) delete counter.cart[code];
   } else {
     const left = remainingOf(m);
-    if (left !== null && (counter.cart[code] || 0) >= left) return toast(queue.length ? `${hhmmOf(load(LASTOK_KEY, 0))}時点の残りでは、これ以上ありません` : "これ以上は残っていません");
+    if (left !== null && (counter.cart[code] || 0) >= left) return toast("これ以上は残っていません");
     counter.cart[code] = (counter.cart[code] || 0) + 1;
     if (isPC()) $("cDone").hidden = true;   // 次の注文に入ったら、前の番号の表示は消す
   }
@@ -408,7 +384,6 @@ async function counterOrder(type) {
     items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
   };
   try {
-    if (queue.some((x) => x.kind === "order")) throw Object.assign(new Error("queued"), { network: true });   // 先に貯まっている分を追い越さない
     if (navigator.onLine === false) throw Object.assign(new Error("offline"), { network: true });          // 端末がネットなしと分かっているときは待たない
     const r = await call("order", { ...payload, staffKey: key });
     resetCounter();
@@ -420,11 +395,11 @@ async function counterOrder(type) {
     refresh();
   } catch (e) {
     if (e.busy) {
-      // サーバーが混んでいるだけ（ネットは切れていない）。仮番号にはせず、押し直してもらう
+      // サーバーが混んでいるだけ（ネットは切れていない）。押し直してもらう
       $("cErr").textContent = "混み合っています。少し待ってもう一度押してください";
       $("cErr").hidden = false;
     } else if (e.network) {
-      // 通信できない：アプリでは受けない（仮番号はなし）。紙で受け付けてもらう
+      // 通信できない：アプリでは受けない。紙で受け付けてもらう
       $("cErr").textContent = "通信できません。この注文は紙に書いて受け付けてください（つながったら、ワンタッチ注文のシートに入れる）";
       $("cErr").hidden = false;
     } else {
@@ -436,7 +411,7 @@ async function counterOrder(type) {
   renderCounterSheet();
 }
 
-// 貯まっている店頭の注文・受け渡しを、古い順に送る（注文には番号 clientId が付いているので、二重にはならない）
+// 貯まっている受け渡しの記録を、古い順に送る
 let flushing = false;
 async function flushQueue() {
   if (flushing || !queue.length) return;
@@ -444,28 +419,9 @@ async function flushQueue() {
   try {
     while (queue.length) {
       const x = queue[0];
-      if (x.kind === "order") {
-        let r;
-        try { r = await call("order", { ...x.payload, staffKey: key }); }
-        catch (e) {
-          if (e.network) throw e;
-          // 送れなかった注文も消えたままにしない：「要確認」に残す
-          alerts.push(`${x.label}（${x.payload.items.map((i) => lineName(byCode(i.code) || { name: i.code }) + "×" + i.qty).join("・")}）を送れませんでした（${e.message}）。スプレッドシートに手で書いてください`);
-          save(ALERT_KEY, alerts);
-          r = null;
-        }
-        if (r) {
-          labels[r.id] = x.label;
-          save(LABEL_KEY, labels);
-          if (x.order.status === "done") queue.push({ kind: "pickup", id: r.id, via: x.order.pickVia });
-          const warn = [r.overStock ? "在庫オーバー（売り切れ後に受けていた）" : "", r.overFree ? "無料はもう使われていた（本来は¥" + st.price + "）" : ""].filter(Boolean);
-          if (warn.length) { alerts.push(`${x.label}（本番号 ${pad(r.no)}）：${warn.join("・")}`); save(ALERT_KEY, alerts); }
-          toast(`${x.label} を送りました（本番号 ${pad(r.no)}）`);
-        }
-      } else {
-        try { await call("pickup", { staffKey: key, id: x.id, via: x.via, late: true }); }
-        catch (e) { if (e.network) throw e; }
-      }
+      try { await call("pickup", { staffKey: key, id: x.id, via: x.via, late: true }); }
+      catch (e) { if (e.network) throw e; }
+
       queue.shift();
       saveQueue();
     }
@@ -481,7 +437,7 @@ function startAuto() {
   autoTimer = setInterval(() => { if (isPC() || queue.length) refresh(); }, 15000);
   addEventListener("online", () => refresh());
 }
-const numLabel = (o) => (o?.label || labels[o?.id] || pad(o?.no));
+const numLabel = (o) => pad(o?.no);
 $("cAsStu").onclick = () => counterOrder("student");
 $("cAsGen").onclick = () => counterOrder("general");
 
@@ -516,7 +472,7 @@ function card(o, btn) {
     <div class="opic">${o.lines.map((l) => `<span class="ocup">${cupSVG({ ...l, color: byCode(l.code)?.color })}${l.qty > 1 ? `<b>×${l.qty}</b>` : ""}</span>`).join("")}${o.byStaff ? `<small class="otag">店頭</small>` : ""}</div>
     ${o.problem ? `<div class="bad-why">⚠ ${esc(o.problem)}</div>` : ""}
     <div class="obody">
-      <div class="ono">${o.label ? `${esc(o.label)}<small>未送信</small>` : labels[o.id] ? `${esc(labels[o.id])}<small>本番号 ${pad(o.no)}</small>` : pad(o.no)}</div>
+      <div class="ono">${pad(o.no)}</div>
       <ul class="olist">${o.lines.map((l) => `<li><span class="code">${esc(l.code)}</span>${esc(lineName(l))}${l.qty > 1 ? ` <b>×${l.qty}</b>` : ""}</li>`).join("")}</ul>
       <div class="oneed">${need(o)}</div>
       ${ageBar(o)}
@@ -535,8 +491,7 @@ function render() {
   const home = pc ? document.querySelector('[data-panel="counter"]') : document.body;
   if ($("cSheet").parentElement !== home) { if (pc) home.prepend($("cSheet")); else home.append($("cSheet")); }
   const pendingPick = new Set(queue.filter((x) => x.kind === "pickup").map((x) => x.id));
-  const local = queue.filter((x) => x.kind === "order").map((x) => x.order);
-  const all = [...orders.map((o) => (pendingPick.has(o.id) ? { ...o, status: "done" } : o)), ...local];
+  const all = orders.map((o) => (pendingPick.has(o.id) ? { ...o, status: "done" } : o));
   const waiting = all.filter((o) => ["new", "making", "ready"].includes(o.status));
 
   // スタッフ画面の一番上にはスタッフ向けの緊急連絡を出す（お客さん向けは「管理」で確認できる）
@@ -549,12 +504,6 @@ function render() {
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (tab === "admin") !== (p.dataset.panel === "admin") : p.dataset.panel !== tab;
   const unsent = queue.length;
-  const offlineNow = unsent > 0 || !$("netOff").hidden;
-  $("stockNote").hidden = true;   // 仮番号をなくしたので使わない
-  $("stockNote").textContent = `残りの数は ${hhmmOf(load(LASTOK_KEY, 0))} 時点のものです（仮番号で受けた分は引いてあります）`;
-  $("offAlerts").hidden = !alerts.length;
-  $("offAlerts").html = alerts.length ? `<b>要確認（圏外で受けた注文）</b><ul>${alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul><button type="button" class="link-btn" id="alertsOk">確認した（消す）</button>` : "";
-  $("alertsOk")?.addEventListener("click", () => { alerts = []; save(ALERT_KEY, alerts); render(); });
   $("queueInfo").hidden = !unsent;
   $("queueInfo").textContent = `まだ送れていない受け渡し ${unsent}件（つながったら自動で送ります）`;
   $("cKitchen").textContent = waiting.length;
