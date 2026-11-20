@@ -423,7 +423,9 @@ html, body { overscroll-behavior-y: contain; }
 .card .add, .card .dec { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; font-weight: 700; flex: none; }
 .card .add { background: var(--dawn); color: #fff; }
 .card .dec { background: var(--bg); color: var(--dawn); border: 2px solid var(--dawn); margin-right: auto; }
-.card.on { border-color: var(--dawn); box-shadow: 0 0 0 1.5px var(--dawn) inset; }
+.card.on { border-color: var(--dawn); }
+/* 選んだカードは、絵の部分も含めて枠全体を同じ太さで囲む */
+.card.on::after { content: ""; position: absolute; inset: 0; border: 3px solid var(--dawn); border-radius: inherit; pointer-events: none; z-index: 2; }
 .card .cnt { position: absolute; top: 6px; right: 6px; background: var(--dawn); color: #fff; font-family: var(--f-num); font-size: 13px; border-radius: 99px; padding: 1px 8px; }
 .card.out { cursor: default; } .card.out .pic .cup { filter: grayscale(1); opacity: .45; } .card.out .add { visibility: hidden; }
 .card .soldout { position: absolute; inset: auto 0 6px; text-align: center; font-style: normal; font-size: 12px; font-weight: 700; color: var(--danger); }

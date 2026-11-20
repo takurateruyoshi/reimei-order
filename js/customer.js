@@ -127,6 +127,13 @@ $("menu").addEventListener("click", (e) => {
     return render();
   }
   const m = byCode(code);
+  // モバイルは1杯だけなので、もう1杯入っているときに別の商品を押したら、その商品に入れ替える
+  if (mobileCap() === 1 && cartQty() === 1 && !cart[code]) {
+    if (m.remaining !== null && m.remaining < 1) return toast("これ以上は残っていません");
+    cart = { [code]: 1 };
+    toast(`${lineName(m)}に変えました`);
+    return render();
+  }
   if (cartQty() >= mobileCap()) return toast(me?.isStudent && !me.freeLeft ? ERR.usedFree : mobileCap() < st.maxQty ? `モバイルオーダーは${mobileCap()}杯までです。2杯目からは店頭で` : `1回の注文は${st.maxQty}杯までです`);
   if (m.remaining !== null && (cart[code] || 0) >= m.remaining) return toast("これ以上は残っていません");
   cart[code] = (cart[code] || 0) + 1;
