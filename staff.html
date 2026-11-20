@@ -33,7 +33,7 @@
   <main id="main" class="loading" style="display:flex;flex-direction:column;gap:16px">
     <div class="staff-head">
     <div class="notice" id="notice" role="alert" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><span id="noticeText"></span></div>
-    <div class="net-off" id="netOff" hidden>通信できません。店頭の注文と受け渡しはこのまま続けられます（つながったら自動で送ります）</div>
+    <div class="net-off" id="netOff" hidden>通信できません。店頭の注文は紙で受け付けてください。受け渡しの記録はこのまま続けられます（つながったら自動で送ります）</div>
     <div class="queue-info" id="queueInfo" hidden></div>
     <div class="off-alerts" id="offAlerts" hidden></div>
     <nav class="tabs" role="tablist" id="tabs">
@@ -62,7 +62,6 @@
       <div class="panel">
         <div class="row"><span>今日は</span><div class="seg" id="daySeg"><button type="button" data-day="1">1日目</button><button type="button" data-day="2">2日目</button></div></div>
         <div class="row"><button class="switch" role="switch" id="openSw" aria-checked="false" aria-label="受付"></button><span id="openLabel"></span></div>
-        <div class="row"><span>圏外のときの仮番号（この端末）</span><b id="devMark"></b><button class="link-btn" type="button" id="devNext">記号を変える</button></div>
       </div>
       <div class="panel">
         <h2>緊急連絡</h2>

@@ -290,7 +290,7 @@ $("daySeg").addEventListener("click", (e) => {
   act({ action: "setConfig", day: st.day }, `${st.day}日目にしました`);
 });
 // 圏外のときの仮番号の記号を変える（パソコンを2台使うときに、ほかの端末と違う記号にする）
-$("devNext").onclick = () => {
+if ($("devNext")) $("devNext").onclick = () => {
   const L = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   DEV = L[(L.indexOf(DEV) + 1) % L.length];
   save("reimei-staff-dev", DEV);
@@ -424,32 +424,9 @@ async function counterOrder(type) {
       $("cErr").textContent = "混み合っています。少し待ってもう一度押してください";
       $("cErr").hidden = false;
     } else if (e.network) {
-      // 通信できない：最後に確認できた残りで足りるか確かめてから、この端末に貯めて、仮番号をお客さんに伝える
-      const short = payload.items.find((i) => { const m = byCode(i.code); const r = remainingOf(m); return m?.soldOut || (r !== null && r < i.qty); });
-      if (short) {
-        $("cErr").textContent = `${lineName(byCode(short.code))} は、${hhmmOf(load(LASTOK_KEY, 0))}時点の残りでは足りません`;
-        $("cErr").hidden = false;
-        btn.disabled = false;
-        return;
-      }
-      const seq = load(SEQ_KEY, 0) + 1;
-      save(SEQ_KEY, seq);
-      const label = "オ" + DEV + seq;
-      const q = payload.items.reduce((a, i) => a + i.qty, 0);
-      const freeKnown = counter.freeLeft !== null && counter.freeLeft !== undefined;   // 圏外だと学籍番号の無料の残りが分からないことが多い
-      const free = type === "student" ? Math.min(freeKnown ? counter.freeLeft : (st.freeLimit ?? 1), q) : 0;
-      const total = (q - free) * st.price;
-      Object.assign(payload, { offline: true, offlineLabel: label, ...(type === "student" ? { offlineFree: free } : {}) });
-      queue.push({ kind: "order", label, payload, order: {
-        id: "local:" + label, label, no: 0, time: Date.now(), type, byStaff: true, status: "new", slot: "", free, total,
-        studentId: counter.sid, lines: payload.items.map((i) => ({ code: i.code, name: byCode(i.code)?.name, variant: byCode(i.code)?.variant, qty: i.qty })),
-      } });
-      saveQueue();
-      resetCounter();
-      $("cDone").hidden = false;
-      $("cDone").html = `<div class="show-no"><small>呼び出し番号（仮）</small>${label}</div><small class="muted">通信が戻ったら自動で送ります</small>${free ? `<div class="need-big id">無料 ${free}杯（学生証を確認）${freeKnown ? "" : "<br><small>無料は仮。つながったあと、もう使われていたら知らせます</small>"}</div>` : ""}${total ? `<div class="need-big cash">${yen(total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
-      $("cAgain").onclick = cClose;
-      render();
+      // 通信できない：アプリでは受けない（仮番号はなし）。紙で受け付けてもらう
+      $("cErr").textContent = "通信できません。この注文は紙に書いて受け付けてください（つながったら、ワンタッチ注文のシートに入れる）";
+      $("cErr").hidden = false;
     } else {
       $("cErr").textContent = { soldOut: "売り切れがあります", needSid: "学籍番号を7桁で入れてください" }[e.message] || "注文を入れられませんでした";
       $("cErr").hidden = false;
@@ -573,13 +550,13 @@ function render() {
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (tab === "admin") !== (p.dataset.panel === "admin") : p.dataset.panel !== tab;
   const unsent = queue.length;
   const offlineNow = unsent > 0 || !$("netOff").hidden;
-  $("stockNote").hidden = !offlineNow;
+  $("stockNote").hidden = true;   // 仮番号をなくしたので使わない
   $("stockNote").textContent = `残りの数は ${hhmmOf(load(LASTOK_KEY, 0))} 時点のものです（仮番号で受けた分は引いてあります）`;
   $("offAlerts").hidden = !alerts.length;
   $("offAlerts").html = alerts.length ? `<b>要確認（圏外で受けた注文）</b><ul>${alerts.map((a) => `<li>${esc(a)}</li>`).join("")}</ul><button type="button" class="link-btn" id="alertsOk">確認した（消す）</button>` : "";
   $("alertsOk")?.addEventListener("click", () => { alerts = []; save(ALERT_KEY, alerts); render(); });
   $("queueInfo").hidden = !unsent;
-  $("queueInfo").textContent = `まだ送れていない操作 ${unsent}件（つながったら自動で送ります）／この端末の仮番号は「オ${DEV}」`;
+  $("queueInfo").textContent = `まだ送れていない受け渡し ${unsent}件（つながったら自動で送ります）`;
   $("cKitchen").textContent = waiting.length;
   // 受け取り時間ごとにまとめる（店頭で入れた注文は「今すぐ」）
   const bySlot = {};
@@ -619,7 +596,6 @@ function render() {
   camSync();
 
   // 管理
-  $("devMark").textContent = "オ" + DEV + "1, オ" + DEV + "2 …";
   for (const b of $("daySeg").children) b.setAttribute("aria-pressed", Number(b.dataset.day) === st.day);
   $("openSw").setAttribute("aria-checked", !!st.open);
   $("openLabel").textContent = st.open ? "受付中（お客さんが注文できます）" : "受付停止中";
