@@ -310,7 +310,6 @@ const STALE = ["soldOut", "badSlot", "slotFull", "dayFull"];
 function showSending(text, cancellable = true) {
   $("sending").hidden = !text;
   if (text) $("sendingText").textContent = text;
-  $("cancelSend").hidden = !cancellable;
 }
 async function sendPending() {
   if (!pending || sending) return;
@@ -380,13 +379,6 @@ async function sendPending() {
   }
 }
 addEventListener("online", () => sendPending());
-$("cancelSend").onclick = () => {
-  clearTimeout(retryTimer);
-  pending = null;
-  savePending();
-  showSending(null);
-  toast("注文をやめました");
-};
 
 // ---------- 表示 ----------
 // カードの名前は1行に収める（入りきらないときだけ文字を小さくする）
