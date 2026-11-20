@@ -20,6 +20,17 @@ async function toGas(env, body) {
 export default {
   async fetch(req, env) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+    // 死活監視用：Cloudflare → Apps Script → シート まで通るか確かめる（UptimeRobot などが5分ごとに開く）
+    // 通れば「OK reimei」（200）、どこかで止まっていれば「NG」（503）
+    if (req.method === "GET" && new URL(req.url).pathname === "/health") {
+      try {
+        const d = JSON.parse(await toGas(env, JSON.stringify({ action: "state" })));
+        if (d.error || !Array.isArray(d.menu) || !d.menu.length) throw new Error("bad");
+        return new Response("OK reimei", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+      } catch {
+        return new Response("NG", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+      }
+    }
     if (req.method !== "POST") return json(JSON.stringify({ ok: true, relay: true }));
     const body = await req.text();
     let p;
