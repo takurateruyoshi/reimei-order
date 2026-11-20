@@ -70,6 +70,8 @@ const toast = (msg) => {
   clearTimeout(toast.t);
   toast.t = setTimeout(() => (t.hidden = true), 2600);
 };
+// 名前のうち「アイス」「ホット」の部分だけ文字の色を変える
+const nameHtml = (l) => esc(l.name) + (l.variant ? `（<span class="${tempCls(l.variant)}">${esc(l.variant)}</span>）` : "");
 const byCode = (code) => st?.menu.find((m) => m.code === code);
 const cartQty = () => Object.values(cart).reduce((a, n) => a + n, 0);
 const cartLines = () => Object.entries(cart).filter(([, n]) => n > 0).map(([code, qty]) => ({ ...byCode(code), qty })).filter((l) => l.code);
@@ -452,7 +454,7 @@ function renderSheet() {
   $("sheetTitle").textContent = ["", "ログイン", "受け取り時間", "注文の確認"][step];
   $("sheetSteps").html = stepBar(step);
   $("sheet").querySelector(".sheet").classList.toggle("tall", step === 2);   // 時間選択は画面いっぱいに大きく出す
-  $("lines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${esc(lineName(l))}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
+  $("lines").html = lines.map((l) => `<li>${cupSVG(l)}<span class="code">${esc(l.code)}</span><span class="nm">${nameHtml(l)}</span><b>×${l.qty}</b><button type="button" class="mini" data-dec="${esc(l.code)}">1杯へらす</button></li>`).join("");
   if (step === 2) {
     $("slots").html = openSlots().length || (st.slots || []).some((t) => t >= cutoffHHMM())
       ? `<p class="tnow" id="gnow"></p><ul class="tlist inline" id="glist"></ul>`
@@ -581,7 +583,7 @@ function showDone(list) {
   try { localStorage.setItem(SHOWN_KEY, JSON.stringify(doneShown)); } catch {}
   try { navigator.vibrate?.([120, 80, 120]); } catch {}
   $("doneNo").textContent = list.map((o) => pad(o.no)).join("・");
-  $("doneItems").html = list.flatMap((o) => o.lines).map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span>${esc(lineName(l))} ×${l.qty}</span></li>`).join("");
+  $("doneItems").html = list.flatMap((o) => o.lines).map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<span>${nameHtml(l)} ×${l.qty}</span></li>`).join("");
   $("done").hidden = false;
 }
 $("doneClose").onclick = () => { $("done").hidden = true; };
