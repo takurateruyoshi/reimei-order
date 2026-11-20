@@ -686,3 +686,9 @@ body.staff .tabs { overflow-y: hidden; scrollbar-width: none; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes fadein { from { opacity: 0; } }
 html.has-ticket #menu:empty, html.has-ticket #loading { display: none; }
+
+/* 全体へのお知らせ（お客さん・スタッフの画面の上） */
+.notice { display: flex; gap: 10px; align-items: flex-start; background: #fdecea; color: #7a1010; border: 2px solid #e2554b; border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 15px; line-height: 1.5; white-space: pre-wrap; animation: noticeIn .3s ease-out; }
+.notice svg { width: 22px; height: 22px; flex: none; margin-top: 1px; fill: none; stroke: #c62828; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+@keyframes noticeIn { from { transform: translateY(-6px); opacity: 0; } }
+.notice-in { width: 100%; font: inherit; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: vertical; }

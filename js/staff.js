@@ -144,7 +144,9 @@ function apply(r) {
 async function refresh() {
   try {
     await flushQueue();
-    apply(await call("staffList", { staffKey: key }));
+    const d = await call("staffList", { staffKey: key });
+    lineReady = !!d.lineReady;
+    apply(d);
     save(LASTOK_KEY, Date.now());
     $("netOff").hidden = true;
   } catch (e) {
@@ -294,6 +296,25 @@ $("devNext").onclick = () => {
   save("reimei-staff-dev", DEV);
   render();
 };
+// 全体へのお知らせ：出す／消す（LINEにも送るにチェックがあれば、LINE公式アカウントの友だち全員にも送る）
+let lineReady = false;
+async function sendNotice(text) {
+  const line = !!text && $("noticeLine").checked;
+  if (line && !confirm("LINEで全員に送ります。よろしいですか？\n\n" + text)) return;
+  $("noticeSend").disabled = $("noticeClear").disabled = true;
+  try {
+    const r = await call("setConfig", { staffKey: key, notice: text, line });
+    st.notice = text;
+    if (!text) $("noticeIn").value = "";
+    $("noticeLine").checked = false;
+    toast(!text ? "お知らせを消しました" : r.line === "sent" ? "お知らせを出して、LINEにも送りました" : line ? "お知らせを出しました（LINEは送れませんでした）" : "お知らせを出しました");
+  } catch { toast("うまくいきませんでした。もう一度押してください"); }
+  $("noticeSend").disabled = $("noticeClear").disabled = false;
+  lastSnap = "";
+  refresh();
+}
+$("noticeSend").onclick = () => { const t = $("noticeIn").value.trim(); if (!t) return toast("お知らせの文を入れてください"); sendNotice(t); };
+$("noticeClear").onclick = () => sendNotice("");
 $("openSw").onclick = () => {
   st.open = !st.open;
   render();
@@ -535,6 +556,10 @@ function render() {
   const all = [...orders.map((o) => (pendingPick.has(o.id) ? { ...o, status: "done" } : o)), ...local];
   const waiting = all.filter((o) => ["new", "making", "ready"].includes(o.status));
 
+  $("notice").hidden = !st.notice;
+  $("noticeText").textContent = st.notice || "";
+  $("noticeLine").disabled = !lineReady;
+  $("lineLabel").textContent = lineReady ? "LINEにも送る（友だち全員に届きます）" : "LINEにも送る（LINEの設定がまだです）";
   $("state").className = "banner" + (st.open ? "" : " closed");
   $("state").textContent = st.open ? "受付中" : "受付停止中";
   for (const b of $("tabs").children) b.setAttribute("aria-selected", b.dataset.tab === tab);

@@ -1,5 +1,5 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, cachedState, watchRev, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
 import { pullToRefresh, esc, pad, yen, lineName, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
@@ -410,6 +410,8 @@ document.fonts?.ready.then(fitNames);   // 字体が届いたあとにもう一�
 
 function render() {
   if (!st) return;
+  $("notice").hidden = !st.notice;
+  $("noticeText").textContent = st.notice || "";
   $("closed").hidden = st.open && st.dayLeft !== 0;
   $("closedText").textContent = st.dayLeft === 0 && st.open ? "本日のモバイルオーダーは売り切れました" : "ただいま受付を停止しています";
   $("who").hidden = !me;
@@ -602,11 +604,21 @@ $("doneClose").onclick = () => { $("done").hidden = true; };
 
 // QRを見せている間だけ、受け渡しが済んだかを確かめる。
 // 「更新番号」は中継サーバーが全員分をまとめて1回だけ問い合わせるので軽い。番号が変わったときだけ自分の注文を読み直す（6秒に1回まで）
-let lastStatusAt = 0;
-watchRev(async () => {
-  if (!activeCount || $("tickets").hidden || Date.now() - lastStatusAt < 6000) return;
-  lastStatusAt = Date.now();
-  await pollTickets();
+// QRの画面を開いていないときは問い合わせない（中継サーバーへの回数を増やさないため）
+let lastStatusAt = 0, lastStateAt = 0, lastRev = null, revBusy = false;
+setInterval(async () => {
+  if (revBusy || document.hidden || !activeCount || $("tickets").hidden) { lastRev = null; return; }
+  revBusy = true;
+  try {
+    const { rev } = await call("rev");
+    if (lastRev !== null && rev !== lastRev) {
+      // 全体へのお知らせ・受付停止なども出すため、メニューの状態も読み直す（中継サーバーがまとめるので軽い。10秒に1回まで）
+      if (Date.now() - lastStateAt > 10000) { lastStateAt = Date.now(); loadState(); }
+      if (Date.now() - lastStatusAt >= 6000) { lastStatusAt = Date.now(); await pollTickets(); }
+      else return;   // 6秒たっていなければ、次の回にもう一度確かめる（lastRev は進めない）
+    }
+    lastRev = rev;
+  } catch {} finally { revBusy = false; }
 }, 3000);
 
 // 受け取り待ちの注文があるときは「受け取り」と「注文する」を切り替える（どちらも1画面に収める）

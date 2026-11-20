@@ -316,8 +316,8 @@ async function demoCall(action, p) {
         if (!m) fail("soldOut");
         if (!p.offline && (m.soldOut || (m.remaining !== null && m.remaining < i.qty))) fail("soldOut");
       }
-      // モバイルは 1〜、店頭は 1001〜（本番の Apps Script と同じ）
-      const no = Math.max(byStaff ? 1000 : 0, ...s.rows.filter((r) => r.day === c.day && (r.no > 1000) === byStaff).map((r) => r.no)) + 1;
+      // 店頭は 1〜、モバイルは 1001〜（本番の Apps Script と同じ）
+      const no = Math.max(byStaff ? 0 : 1000, ...s.rows.filter((r) => r.day === c.day && (r.no > 1000) === !byStaff).map((r) => r.no)) + 1;
       const id = p.clientId || Math.random().toString(36).slice(2, 10);
       const secret = Math.random().toString(36).slice(2);
       let used = 0, total = 0;
@@ -355,8 +355,9 @@ async function demoCall(action, p) {
       if (p.day) c.day = Number(p.day);
       if (typeof p.open === "boolean") c.open = p.open;
       if (p.soldOut) s.menu.forEach((m) => { if (m.code in p.soldOut) m.soldOut = !!p.soldOut[m.code]; });
+      if (typeof p.notice === "string") c.notice = p.notice.trim().slice(0, 300);
       demoSave(s);
-      return { ok: true };
+      return typeof p.notice === "string" && p.line ? { ok: true, line: "off" } : { ok: true };
   }
   fail("unknown");
 }
