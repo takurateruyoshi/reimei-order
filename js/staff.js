@@ -26,6 +26,12 @@ const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } cat
 let queue = load(Q_KEY, []);          // { kind: "order", label, payload, order } | { kind: "pickup", id }
 let labels = load(LABEL_KEY, {});     // 本番の注文ID → 仮番号
 const saveQueue = () => save(Q_KEY, queue);
+// 端末ごとの記号（A〜Z、まぎらわしい I・O は使わない）。圏外の間に2台で受けても仮番号がかぶらないように「オK1」のように付ける
+let DEV = (() => {
+  let d = load("reimei-staff-dev", "");
+  if (!d) { const L = "ABCDEFGHJKLMNPQRSTUVWXYZ"; d = L[Math.floor(Math.random() * L.length)]; save("reimei-staff-dev", d); }
+  return d;
+})();
 
 const toast = (msg) => {
   const t = $("toast");
@@ -208,6 +214,13 @@ $("daySeg").addEventListener("click", (e) => {
   render();
   act({ action: "setConfig", day: st.day }, `${st.day}日目にしました`);
 });
+// 圏外のときの仮番号の記号を変える（パソコンを2台使うときに、ほかの端末と違う記号にする）
+$("devNext").onclick = () => {
+  const L = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  DEV = L[(L.indexOf(DEV) + 1) % L.length];
+  save("reimei-staff-dev", DEV);
+  render();
+};
 $("openSw").onclick = () => {
   st.open = !st.open;
   render();
@@ -306,7 +319,7 @@ async function counterOrder(type) {
       // 通信できない：この端末に貯めて、仮番号をお客さんに伝える
       const seq = load(SEQ_KEY, 0) + 1;
       save(SEQ_KEY, seq);
-      const label = "オ" + seq;
+      const label = "オ" + DEV + seq;
       const q = payload.items.reduce((a, i) => a + i.qty, 0);
       const free = type === "student" ? Math.min(counter.freeLeft ?? st.freeLimit ?? 1, q) : 0;
       const total = (q - free) * st.price;
@@ -434,7 +447,7 @@ function render() {
   for (const p of document.querySelectorAll("[data-panel]")) p.hidden = pc ? (tab === "admin") !== (p.dataset.panel === "admin") : p.dataset.panel !== tab;
   const unsent = queue.length;
   $("queueInfo").hidden = !unsent;
-  $("queueInfo").textContent = `まだ送れていない操作 ${unsent}件（つながったら自動で送ります）`;
+  $("queueInfo").textContent = `まだ送れていない操作 ${unsent}件（つながったら自動で送ります）／この端末の仮番号は「オ${DEV}」`;
   $("cKitchen").textContent = waiting.length;
   // 受け取り時間ごとにまとめる（店頭で入れた注文は「今すぐ」）
   const bySlot = {};
@@ -472,6 +485,7 @@ function render() {
   renderCounterSheet();
 
   // 管理
+  $("devMark").textContent = "オ" + DEV + "1, オ" + DEV + "2 …";
   for (const b of $("daySeg").children) b.setAttribute("aria-pressed", Number(b.dataset.day) === st.day);
   $("openSw").setAttribute("aria-checked", !!st.open);
   $("openLabel").textContent = st.open ? "受付中（お客さんが注文できます）" : "受付停止中";
