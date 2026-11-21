@@ -1,7 +1,7 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
 import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
 import { startQRStream, scanStudentCard } from "./scan.js";
-import { esc, pad, yen, lineName, tempCls, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
+import { esc, pad, yen, lineName, tempCls, autoUpdate, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 $("shop").textContent = SHOP_NAME;
@@ -639,6 +639,8 @@ function render() {
   ].map(([k, v]) => `<div class="tile"><small>${k}</small><b>${v}</b></div>`).join("");
 }
 
+// 新しい版が出たら、注文や操作の途中でないときに自動で読み込み直す
+autoUpdate(() => !ordering && !Object.keys(counter.cart).length && !armed && !resetArmed && !camBusy && document.querySelector(".scan-bg") === null);
 // Googleから戻ってきたときは、そのまま読み込み画面へ
 const back = popRedirectToken();
 if (back) loginWith(back); else if (key) enter(); else showLogin();

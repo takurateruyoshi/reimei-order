@@ -2,7 +2,7 @@ import { SHOP_NAME } from "./config.js";
 import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
-import { pullToRefresh, esc, pad, yen, lineName, tempCls, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
+import { pullToRefresh, esc, pad, yen, lineName, tempCls, autoUpdate, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 const STEPS = [["new", "受付"], ["making", "作っています"], ["ready", "できあがり"]];
@@ -659,3 +659,6 @@ const refresh = () => Promise.all([loadState(), pollTickets()]);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 pullToRefresh(refresh, () => !$("sheet").hidden || !$("tsheet").hidden);
 
+
+// 新しい版が出たら、注文の途中でないときに自動で読み込み直す
+autoUpdate(() => !pending && !sending && $("sheet").hidden && $("tsheet").hidden && !cartQty() && document.querySelector(".scan-bg") === null);

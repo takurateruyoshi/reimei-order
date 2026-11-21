@@ -141,3 +141,21 @@ export function fitText(selector, min = 9) {
     while (el.scrollWidth > el.clientWidth && px > min) el.style.fontSize = (px -= 0.5) + "px";
   });
 }
+
+// 新しい版が公開されたら、開きっぱなしの画面も自動で読み込み直す（古いプログラムのまま動き続けないように）。
+// canReload() が true のとき（注文の途中でないとき）だけ読み込み直す
+export function autoUpdate(canReload, ms = 60000) {
+  let first = null, waiting = false;
+  const check = async () => {
+    try {
+      const t = await (await fetch("sw.js", { cache: "no-store" })).text();
+      const v = (t.match(/reimei-v\d+/) || [])[0];
+      if (!v) return;
+      if (first === null) first = v;
+      else if (v !== first) waiting = true;
+      if (waiting && canReload()) location.reload();
+    } catch {}
+  };
+  check();
+  setInterval(check, ms);
+}
