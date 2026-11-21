@@ -432,7 +432,7 @@ async function counterOrder(type) {
   btn.textContent = "登録しています…";
   counter.cid ||= newId();
   const payload = {
-    asStaff: true, type, clientId: counter.cid, ...(counter.over?.size ? { force: true } : {}),
+    asStaff: true, type, clientId: counter.cid, force: true,
     ...(type === "student" ? { studentId: counter.sid, sidVia: counter.sidVia || "typed" } : {}),
     items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
   };
