@@ -743,3 +743,13 @@ body.pc .mk-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .bell { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 12px; white-space: nowrap; }
 .bell.wait { border-color: var(--dawn); color: var(--dawn); font-weight: 700; }
 .bell.off { color: var(--muted); }
+
+/* カメラを止めている・使えないとき：枠をなくして一覧を上まで使う */
+.cam.off { background: none; border-radius: 0; overflow: visible; display: flex; justify-content: flex-end; min-height: 0; height: auto; }
+.cam.off .cam-msg { display: none; }
+.cam.off .cam-tog { position: static; background: var(--surface); border: 1px solid var(--line); padding: 4px 12px; }
+body.cam-off .handoff-note { display: none; }
+.cam.fail { height: auto; min-height: 0; background: var(--surface); border: 1px solid var(--line); position: relative; }
+.cam.fail .scan-frame, .cam.fail video { display: none; }
+.cam.fail .cam-msg { position: static; background: none; color: var(--muted); font-size: 13px; padding: 8px 120px 8px 12px; }
+body.pc .cam.off, body.pc .cam.fail { height: auto; }

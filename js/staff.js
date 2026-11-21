@@ -268,13 +268,17 @@ const CAM_IDLE = "お客さんのQRか、学生証のバーコードを枠に向
 async function camSync() {
   const on = camWant && ordersLoaded && tab === "kitchen" && !document.hidden && !$("main").hidden;
   $("cam").classList.toggle("off", !camWant);
+  if (!camWant) $("cam").classList.remove("fail");
+  document.body.classList.toggle("cam-off", !camWant);
   $("camTog").textContent = camWant ? "カメラを止める" : "カメラをつける";
   if (on && !cam && !camBusy) {
     camBusy = true;
     $("camMsg").textContent = "カメラを準備しています…";
     const c = await startQRStream($("cam"), onQR, onCard);
     camBusy = false;
-    if (c.error) { $("camMsg").textContent = c.error; return; }
+    // カメラが使えないとき（許可しなかった・カメラがない）は、黒い枠をやめて1行の案内だけにする
+    if (c.error) { $("camMsg").textContent = c.error; $("cam").classList.add("fail"); return; }
+    $("cam").classList.remove("fail");
     cam = c;
     $("camMsg").textContent = CAM_IDLE;
     camSync();   // 準備している間に別のタブへ移っていたら止める
