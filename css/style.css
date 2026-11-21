@@ -739,3 +739,7 @@ body.pc .mk-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .show-place b { font-size: 18px; }
 .sw2 { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
 .sw2 small { font-size: 10px; color: var(--muted); line-height: 1; }
+.show-note { margin: 10px 0 0; font-size: 11px; line-height: 1.5; color: var(--muted); text-align: left; }
+.bell { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 10px; font-size: 12px; white-space: nowrap; }
+.bell.wait { border-color: var(--dawn); color: var(--dawn); font-weight: 700; }
+.bell.off { color: var(--muted); }

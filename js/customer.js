@@ -570,6 +570,7 @@ function renderTickets() {
         </div>
         <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       </div>
+      <p class="show-note">受け取り時間の変更は、受渡し口のスタッフにお申し付けください。<br>※すぐに作成いたしますが、混雑状況によっては受け渡し時間より前のご提供が難しい場合もございます。ご了承ください。</p>
     </article>`;
   }).join("");
   $("tickets").classList.toggle("many", active.length > 1);

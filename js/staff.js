@@ -30,6 +30,59 @@ const remainingOf = (m) => (m?.remaining == null ? null : m.remaining);
 const viewOf = (m) => m;
 const saveQueue = () => save(Q_KEY, queue);
 
+// ---------- 新しいモバイル注文が来たら音を鳴らす（端末ごとにオン・オフ） ----------
+// スマホは画面を1回タップしないと音を出せないので、最初のタップで音の準備をする
+const BELL_KEY = "reimei-bell";
+let bellOn = load(BELL_KEY, true), actx = null, seenIds = null;
+function unlockAudio() {
+  if (!bellOn) return;
+  try {
+    actx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume().then(renderBell, () => {});
+  } catch {}
+  renderBell();
+}
+addEventListener("pointerdown", unlockAudio, { passive: true });
+function chime() {
+  if (!bellOn) return;
+  try {
+    unlockAudio();
+    const t = actx.currentTime;
+    [880, 1320].forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), at = t + i * 0.16;
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.5, at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
+      o.connect(g).connect(actx.destination);
+      o.start(at); o.stop(at + 0.4);
+    });
+  } catch {}
+  try { navigator.vibrate?.([150, 80, 150]); } catch {}
+}
+function renderBell() {
+  const b = $("bell");
+  b.hidden = false;
+  const ready = actx && actx.state === "running";
+  b.textContent = !bellOn ? "🔕 音オフ" : ready ? "🔔 音オン" : "🔔 タップで音を有効に";
+  b.classList.toggle("off", !bellOn);
+  b.classList.toggle("wait", bellOn && !ready);
+}
+$("bell").onclick = () => {
+  bellOn = !bellOn;
+  save(BELL_KEY, bellOn);
+  if (bellOn) chime();
+  renderBell();
+};
+// 一覧を読むたびに、まだ見ていないモバイルの注文があれば鳴らす（開いた直後の一覧では鳴らさない）
+function checkNew(list) {
+  const ids = list.filter((o) => !o.byStaff && o.status !== "cancel" && o.status !== "done").map((o) => o.id);
+  if (seenIds === null) { seenIds = new Set(ids); return; }
+  let fresh = false;
+  ids.forEach((id) => { if (!seenIds.has(id)) { seenIds.add(id); fresh = true; } });
+  if (fresh) chime();
+}
+
 const toast = (msg) => {
   const t = $("toast");
   t.textContent = msg;
@@ -72,6 +125,7 @@ async function enter() {
     $("who").html = `<span>${esc(email)}</span><button type="button" id="out">ログアウト</button>`;
     $("out").onclick = () => { saveStaffKey(null); location.reload(); };
     maker = !!r.maker;
+    renderBell();
     apply(r);
     save(LASTOK_KEY, Date.now());
     $("main").classList.remove("loading");
@@ -130,6 +184,7 @@ function apply(r) {
   save(LAST_KEY, r);
   st = r.state;
   orders = r.orders.sort((a, b) => a.no - b.no);
+  checkNew(orders);
   render();
 }
 // 同時に何回も呼ばれたら、今の読み込みが終わってからもう1回だけ読む
