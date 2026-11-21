@@ -43,12 +43,13 @@ function unlockAudio() {
   renderBell();
 }
 addEventListener("pointerdown", unlockAudio, { passive: true });
-function chime() {
+// モバイル：「ピロン」（2音）、店頭：「ポン」（低めの1音）
+function chime(store) {
   if (!bellOn) return;
   try {
     unlockAudio();
     const t = actx.currentTime;
-    [880, 1320].forEach((f, i) => {
+    (store ? [660] : [880, 1320]).forEach((f, i) => {
       const o = actx.createOscillator(), g = actx.createGain(), at = t + i * 0.16;
       o.type = "sine"; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, at);
@@ -58,7 +59,7 @@ function chime() {
       o.start(at); o.stop(at + 0.4);
     });
   } catch {}
-  try { navigator.vibrate?.([150, 80, 150]); } catch {}
+  try { navigator.vibrate?.(store ? [120] : [150, 80, 150]); } catch {}
 }
 function renderBell() {
   const b = $("bell");
@@ -74,13 +75,21 @@ $("bell").onclick = () => {
   if (bellOn) chime();
   renderBell();
 };
-// 一覧を読むたびに、まだ見ていないモバイルの注文があれば鳴らす（開いた直後の一覧では鳴らさない）
+// 一覧を読むたびに、まだ見ていない注文があれば鳴らす（開いた直後の一覧では鳴らさない）。
+// 店頭の注文は、この端末で入れたもの（mineIds）では鳴らさず、ほかの端末・ワンタッチ注文の分だけ鳴らす
+const mineIds = new Set();
 function checkNew(list) {
-  const ids = list.filter((o) => !o.byStaff && o.status !== "cancel" && o.status !== "done").map((o) => o.id);
-  if (seenIds === null) { seenIds = new Set(ids); return; }
-  let fresh = false;
-  ids.forEach((id) => { if (!seenIds.has(id)) { seenIds.add(id); fresh = true; } });
-  if (fresh) chime();
+  const open = list.filter((o) => o.status !== "cancel" && o.status !== "done");
+  if (seenIds === null) { seenIds = new Set(open.map((o) => o.id)); return; }
+  let mobile = false, store = false;
+  open.forEach((o) => {
+    if (seenIds.has(o.id)) return;
+    seenIds.add(o.id);
+    if (!o.byStaff) mobile = true;
+    else if (!mineIds.has(o.id)) store = true;
+  });
+  if (mobile) chime(false);
+  else if (store) chime(true);
 }
 
 const toast = (msg) => {
@@ -513,7 +522,9 @@ async function counterOrder(type) {
   };
   try {
     if (navigator.onLine === false) throw Object.assign(new Error("offline"), { network: true });          // 端末がネットなしと分かっているときは待たない
+    mineIds.add(counter.cid);   // 自分で入れた注文では鳴らさない（注文IDは送った番号と同じ）
     const r = await call("order", { ...payload, staffKey: key });
+    mineIds.add(r.id);
     resetCounter();
     $("cDone").hidden = false;
     $("cDone").html = `<div class="show-no"><small>呼び出し番号</small>${pad(r.no)}</div>${r.free ? `<div class="need-big id">無料 ${r.free}杯（学生証を確認）</div>` : ""}${r.total ? `<div class="need-big cash">${yen(r.total)} を受け取る</div>` : ""}<button class="go wide" type="button" id="cAgain">次の注文へ</button>`;
