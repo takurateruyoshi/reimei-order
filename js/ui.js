@@ -42,7 +42,7 @@ export const SNS = [
   { t: "x", label: "執行部のX", url: "https://x.com/MU_shikkoubu",
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M20 4L4 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>` },
 ];
-export const snsHtml = () => `<nav class="sns" aria-label="執行部のSNS"><p>執行部のSNSもチェック</p><div>${SNS.map((s) => `<a class="sns-btn ${s.t}" href="${s.url}" target="_blank" rel="noopener" data-sns="${s.t}">${s.icon}<span>${s.label}</span></a>`).join("")}</div></nav>`;
+export const snsHtml = () => `<nav class="sns" aria-label="執行部のSNS"><p>執行部のSNSもチェック</p><div>${SNS.map((s) => `<a class="sns-btn sns-${s.t}" href="${s.url}" target="_blank" rel="noopener" data-sns="${s.t}">${s.icon}<span>${s.label}</span></a>`).join("")}</div></nav>`;
 
 export function stockGauge(m) {
   if (m.stock == null || m.soldOut) return "";
