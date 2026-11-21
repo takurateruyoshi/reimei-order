@@ -628,7 +628,7 @@ function render() {
   $("openSw").setAttribute("aria-checked", !!st.open);
   $("openLabel").textContent = st.open ? "受付中（お客さんが注文できます）" : "受付停止中";
   $("soldOut").html = st.menu.map(viewOf).map((m) => `<div class="row">${cupSVG(m)}<span class="code">${esc(m.code)}</span>
-    <span style="flex:1;min-width:0">${esc(lineName(m))} ${m.remaining !== null ? `<small class="muted">のこり${m.remaining}</small>` : ""}${stockGauge(m)}</span>
+    <span style="flex:1;min-width:0">${esc(lineName(m))} ${m.remaining !== null ? `<small class="muted">のこり${m.remaining}</small>` : ""}${m.mobileLeft != null ? ` <small class="muted">（モバイル枠のこり${m.mobileLeft}/${m.mobileCap}）</small>` : ""}${stockGauge(m)}</span>
     <button class="switch" role="switch" aria-checked="${!m.soldOut}" data-sold="${m.code}" aria-label="${esc(lineName(m))} 販売中"></button></div>`).join("");
 
   const valid = orders.filter((o) => o.status !== "cancel");

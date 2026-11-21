@@ -1,8 +1,8 @@
 import { SHOP_NAME } from "./config.js";
-import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton } from "./api.js";
+import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton, snsPing } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
-import { pullToRefresh, esc, pad, yen, lineName, tempCls, autoUpdate, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON } from "./ui.js";
+import { pullToRefresh, esc, pad, yen, lineName, tempCls, autoUpdate, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON, snsHtml } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 const STEPS = [["new", "受付"], ["making", "作っています"], ["ready", "できあがり"]];
@@ -569,7 +569,7 @@ function renderTickets() {
         <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       </div>
     </article>`;
-  }).join("");
+  }).join("") + (active.length ? snsHtml() : "");
   $("tickets").classList.toggle("many", active.length > 1);
 
   const readyIds = new Set(active.filter((o) => o.status === "ready").map((o) => o.id));
@@ -588,6 +588,12 @@ function showDone(list) {
   $("done").hidden = false;
 }
 $("doneClose").onclick = () => { $("done").hidden = true; };
+$("doneSns").html = snsHtml();
+// 執行部のSNSが押された数を数える（どの画面のボタンでも）
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-sns]");
+  if (a) snsPing(a.dataset.sns);
+});
 
 // QRを見せている間だけ、受け渡しが済んだかを確かめる。
 // 「更新番号」は中継サーバーが全員分をまとめて1回だけ問い合わせるので軽い。番号が変わったときだけ自分の注文を読み直す（6秒に1回まで）

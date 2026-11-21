@@ -44,6 +44,13 @@ const VID = (() => {
   } catch { return ""; }
 })();
 let relayOffUntil = 0;
+// 完了画面の「執行部のインスタ／X」が押された数（中継サーバーで端末ごとに1人として数える）。ページを離れても届くよう sendBeacon で送る
+export function snsPing(target) {
+  if (DEMO || !RELAY_URL) return;
+  const body = JSON.stringify({ action: "sns", target, vid: VID });
+  try { if (navigator.sendBeacon?.(RELAY_URL, body)) return; } catch {}
+  fetch(RELAY_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body, keepalive: true }).catch(() => {});
+}
 // スタッフの店頭注文は、目の前のお客さんを待たせないよう、中継12秒・直接12秒で見切る（だめなら仮番号に切り替える）
 const STAFF_WAIT = 12000;
 async function post(action, payload) {

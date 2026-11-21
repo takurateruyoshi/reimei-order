@@ -35,7 +35,7 @@ export default {
     const body = await req.text();
     let p;
     try { p = JSON.parse(body); } catch { return json(JSON.stringify({ error: "bad" }), 400); }
-    if (p.action === "order" || p.action in TTL) {
+    if (p.action === "order" || p.action === "sns" || p.action in TTL) {
       const hub = env.HUB.get(env.HUB.idFromName("main"));
       return hub.fetch("https://hub/", { method: "POST", body });
     }
@@ -71,6 +71,11 @@ export class Hub {
       if (!r.error) await this.record("order", vid);
       return json(JSON.stringify(r));
     }
+    // 完了画面の「執行部のインスタ／X」が押された（シートには時間帯ごとの端末の数を書く）
+    if (p.action === "sns") {
+      if (p.target === "ig" || p.target === "x") await this.record(p.target, vid);
+      return json(JSON.stringify({ ok: true }));
+    }
     if (p.action === "state") await this.record("open", vid);
     return json(await this.read(p.action, body));
   }
@@ -84,7 +89,12 @@ export class Hub {
       const s = (await st.get(k)) || { opens: 0, orders: 0, vids: [] };
       if (kind === "open") s.opens++;
       if (kind === "order") s.orders++;
-      if (vid && !s.vids.includes(vid)) s.vids.push(vid);
+      if (kind === "ig" || kind === "x") {
+        // 同じ端末が何回押しても1人として数える
+        s[kind] = s[kind] || [];
+        if (vid && !s[kind].includes(vid)) s[kind].push(vid);
+        else if (!vid) s[kind + "n"] = (s[kind + "n"] || 0) + 1;
+      } else if (vid && !s.vids.includes(vid)) s.vids.push(vid);
       const dirty = (await st.get("dirty")) || [];
       if (!dirty.includes(b)) dirty.push(b);
       await st.put({ [k]: s, dirty });
@@ -96,7 +106,7 @@ export class Hub {
     const dirty = (await st.get("dirty")) || [];
     if (!this.env.STATS_KEY || !dirty.length) return;
     const rows = [];
-    for (const b of dirty) { const s = await st.get("s:" + b); if (s) rows.push([b, s.opens, s.vids.length, s.orders]); }
+    for (const b of dirty) { const s = await st.get("s:" + b); if (s) rows.push([b, s.opens, s.vids.length, s.orders, (s.ig || []).length + (s.ign || 0), (s.x || []).length + (s.xn || 0)]); }
     try {
       const t = await toGas(this.env, JSON.stringify({ action: "stats", key: this.env.STATS_KEY, rows }));
       if (JSON.parse(t).error) throw new Error(t);

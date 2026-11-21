@@ -35,6 +35,15 @@ export function cupSVG(m = {}, cls = "") {
 }
 
 // 残りの数を小さなゲージで表す（用意した数が決まっている時だけ）
+// 執行部のSNS（注文の画面・受け渡し完了の画面の下に出す）
+export const SNS = [
+  { t: "ig", label: "執行部のインスタ", url: "https://www.instagram.com/mu_shikkoubu/reels/",
+    icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor"/></svg>` },
+  { t: "x", label: "執行部のX", url: "https://x.com/MU_shikkoubu",
+    icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M20 4L4 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>` },
+];
+export const snsHtml = () => `<nav class="sns" aria-label="執行部のSNS"><p>執行部のSNSもチェック</p><div>${SNS.map((s) => `<a class="sns-btn ${s.t}" href="${s.url}" target="_blank" rel="noopener" data-sns="${s.t}">${s.icon}<span>${s.label}</span></a>`).join("")}</div></nav>`;
+
 export function stockGauge(m) {
   if (m.stock == null || m.soldOut) return "";
   const r = m.remaining / m.stock;
