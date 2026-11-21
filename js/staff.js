@@ -718,9 +718,22 @@ function render() {
     ["学部生（人）", people],
     ["無料（杯）", valid.reduce((a, o) => a + o.free, 0)],
     ["合計（杯）", cups(valid)],
-    ["モバイル残り（今日）", `${st.dayLeft ?? "-"} / ${st.dayCap ?? "-"}`],
+    ["モバイル残り（今日）", mobileTotals()],
     ["現金 受け取り済み", yen(valid.filter((o) => o.status === "done").reduce((a, o) => a + o.total, 0))],
   ].map(([k, v]) => `<div class="tile"><small>${k}</small><b>${v}</b></div>`).join("");
+}
+
+// モバイルで受けられる残りの合計 / 今日のモバイル枠の合計（枠が空欄の商品は在庫の数で数える）
+function mobileTotals() {
+  let left = 0, cap = 0, known = false;
+  for (const m of st.menu || []) {
+    const c = m.mobileCap ?? m.stock;
+    if (c == null) continue;
+    known = true;
+    cap += c;
+    if (!m.mobileSoldOut) left += m.mobileLeft == null ? m.remaining ?? 0 : Math.min(m.mobileLeft, m.remaining ?? m.mobileLeft);
+  }
+  return known ? `${left} / ${cap}` : "-";
 }
 
 // 新しい版が出たら、注文や操作の途中でないときに自動で読み込み直す
