@@ -317,7 +317,7 @@ async function demoCall(action, p) {
         if (!p.offline && (m.soldOut || (m.remaining !== null && m.remaining < i.qty))) fail("soldOut");
       }
       // 店頭は 1〜、モバイルは 1001〜（本番の Apps Script と同じ）
-      const no = Math.max(byStaff ? 0 : 1000, ...s.rows.filter((r) => r.day === c.day && (r.no > 1000) === !byStaff).map((r) => r.no)) + 1;
+      const no = Math.max(byStaff ? 0 : 1000, ...s.rows.filter((r) => (r.no > 1000) === !byStaff).map((r) => r.no)) + 1;
       const id = p.clientId || Math.random().toString(36).slice(2, 10);
       const secret = Math.random().toString(36).slice(2);
       let used = 0, total = 0;
@@ -350,6 +350,13 @@ async function demoCall(action, p) {
       s.rows.forEach((r) => { if (r.id === p.id && r.status !== "cancel") r.status = p.status; });
       demoSave(s);
       return { ok: true };
+    case "resetOrders": {
+      staff();
+      const count = new Set(s.rows.map((r) => r.id)).size;
+      s.rows = [];
+      demoSave(s);
+      return { ok: true, count };
+    }
     case "setConfig":
       staff();
       if (p.day) c.day = Number(p.day);

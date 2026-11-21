@@ -309,6 +309,31 @@ document.addEventListener("click", (e) => {
   }
   if (c) sendNotice(c.dataset.noticeClear, "");
 });
+// 注文をすべて消す：押し間違いを防ぐため2回押す（1回目で赤くなり、3秒以内にもう一度）
+let resetArmed = false, resetTimer = null;
+$("resetOrders").onclick = async () => {
+  const b = $("resetOrders");
+  if (!resetArmed) {
+    resetArmed = true;
+    b.classList.add("armed");
+    b.textContent = "もう一度押すと消えます（3秒以内）";
+    resetTimer = setTimeout(() => { resetArmed = false; b.classList.remove("armed"); b.textContent = "注文をすべて消す"; }, 3000);
+    return;
+  }
+  clearTimeout(resetTimer);
+  resetArmed = false;
+  b.classList.remove("armed");
+  b.disabled = true;
+  b.textContent = "消しています…";
+  try {
+    const r = await call("resetOrders", { staffKey: key });
+    toast(`${r.count}件の注文を消しました（「消した注文」シートに控え）`);
+  } catch { toast("消せませんでした。もう一度押してください"); }
+  b.disabled = false;
+  b.textContent = "注文をすべて消す";
+  lastSnap = "";
+  refresh();
+};
 $("openSw").onclick = () => {
   st.open = !st.open;
   render();
