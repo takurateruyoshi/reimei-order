@@ -726,3 +726,4 @@ body.pc .mk-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .go.busy:disabled { background: var(--dawn); color: #fff; }
 .danger-btn { border: 1.5px solid #c0392b; color: #c0392b; background: #fff; border-radius: 999px; padding: 10px 18px; font-weight: 700; }
 .danger-btn.armed { background: #c0392b; color: #fff; }
+.staff .card.out { cursor: pointer; } .staff .card.out .add { visibility: visible; }

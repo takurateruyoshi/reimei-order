@@ -357,7 +357,11 @@ $("cCodes").addEventListener("click", (e) => {
     if (!counter.cart[code]) delete counter.cart[code];
   } else {
     const left = remainingOf(m);
-    if (left !== null && (counter.cart[code] || 0) >= left) return toast("これ以上は残っていません");
+    const over = m.soldOut || (left !== null && (counter.cart[code] || 0) >= left);
+    if (over && !counter.over?.has(code)) {
+      if (!confirm(`${lineName(m)} は売り切れ（在庫なし）になっています。\n作れることを確かめてから注文しますか？`)) return;
+      (counter.over ||= new Set()).add(code);
+    }
     counter.cart[code] = (counter.cart[code] || 0) + 1;
     if (isPC()) $("cDone").hidden = true;   // 次の注文に入ったら、前の番号の表示は消す
   }
@@ -407,6 +411,7 @@ async function lookupSid() {
 }
 function resetCounter() {
   counter.cid = null;
+  counter.over = new Set();
   counter.cart = {};
   counter.sid = "";
   counter.freeLeft = null;
@@ -427,7 +432,7 @@ async function counterOrder(type) {
   btn.textContent = "登録しています…";
   counter.cid ||= newId();
   const payload = {
-    asStaff: true, type, clientId: counter.cid,
+    asStaff: true, type, clientId: counter.cid, ...(counter.over?.size ? { force: true } : {}),
     ...(type === "student" ? { studentId: counter.sid, sidVia: counter.sidVia || "typed" } : {}),
     items: Object.entries(counter.cart).map(([code, qty]) => ({ code, qty })),
   };
@@ -595,7 +600,7 @@ function render() {
   // お客さん画面と同じカード（3列）
   $("cCodes").html = `<div class="cards">${st.menu.map(viewOf).map((m) => {
     const n = counter.cart[m.code] || 0;
-    return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}" ${m.soldOut ? "disabled" : ""}>
+    return `<button type="button" class="card ${n ? "on" : ""} ${m.soldOut ? "out" : ""}" data-code="${m.code}" style="--tint:${m.color || "#999"}">
       <span class="pic">${cupSVG(m)}${n ? `<b class="cnt">×${n}</b>` : ""}${m.soldOut ? `<em class="soldout">売り切れ</em>` : ""}<small class="code">${esc(m.code)}</small></span>
       <span class="nm"><small>${esc(m.variant ? m.name : "")}</small><b class="vn ${tempCls(m.variant)}">${esc(m.variant || m.name)}</b></span>
       <span class="ft">${n ? `<span class="dec" data-dec-row aria-label="1杯へらす">−</span>` : m.stock != null && !m.soldOut ? `<span class="left ${m.remaining <= 3 ? "low" : ""}">のこり${m.remaining}</span>` : ""}<span class="add" aria-hidden="true">＋</span></span>

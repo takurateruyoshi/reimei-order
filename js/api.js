@@ -314,7 +314,7 @@ async function demoCall(action, p) {
       for (const i of items) {
         const m = menu[i.code];
         if (!m) fail("soldOut");
-        if (!p.offline && (m.soldOut || (m.remaining !== null && m.remaining < i.qty))) fail("soldOut");
+        if (!p.offline && !p.force && (m.soldOut || (m.remaining !== null && m.remaining < i.qty))) fail("soldOut");
       }
       // 店頭は 1〜、モバイルは 1001〜（本番の Apps Script と同じ）
       const no = Math.max(byStaff ? 0 : 1000, ...s.rows.filter((r) => (r.no > 1000) === !byStaff).map((r) => r.no)) + 1;
