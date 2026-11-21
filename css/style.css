@@ -734,3 +734,6 @@ body.pc .mk-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .sns-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; font-size: 13px; font-weight: 700; background: var(--surface); }
 .sns-btn svg { width: 18px; height: 18px; }
 .sns-btn.ig svg { color: #c13584; }
+.show-place { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 6px 0 2px; font-size: 15px; color: var(--ink); }
+.show-place svg { width: 18px; height: 18px; color: var(--dawn); }
+.show-place b { font-size: 18px; }

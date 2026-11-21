@@ -2,6 +2,7 @@ import { SHOP_NAME } from "./config.js";
 import { call, newId, cachedState, popRedirectToken, DEMO, resetDemo, savedToken, saveToken, renderGoogleButton, snsPing } from "./api.js";
 import { scanStudentCard } from "./scan.js";
 import SNAPSHOT from "./menu-snapshot.js";
+const PICKUP_PLACE = "5号館1階";
 import { pullToRefresh, esc, pad, yen, lineName, tempCls, autoUpdate, cupSVG, stockGauge, groupMenu, STEP_ICONS, ID_ICON, COIN_ICON, snsHtml } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -561,6 +562,7 @@ function renderTickets() {
         ${o.slot ? `<div class="show-slot"><small>受け取り時間</small>${esc(o.slot)}</div>` : ""}
         <div class="show-no"><small>呼び出し番号${active.length > 1 ? `　${i + 1}/${active.length}` : ""}</small>${o.no == null ? "…" : pad(o.no)}</div>
       </div>
+      <p class="show-place"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.6" fill="currentColor"/></svg>受け取り場所 <b>${PICKUP_PLACE}</b></p>
       <ul class="big-items n${Math.min(o.lines.length, 4)}">${o.lines.map((l) => `<li>${cupSVG({ ...l, color: byCode(l.code)?.color })}<div><b>${esc(l.name)}</b>${l.variant ? `<span class="${tempCls(l.variant)}">${esc(l.variant)}</span>` : ""}</div><em>×${l.qty}</em></li>`).join("")}</ul>
       <div class="show-foot">
         <div class="show-info">
