@@ -728,10 +728,10 @@ body.pc .mk-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .danger-btn.armed { background: #c0392b; color: #fff; }
 .staff .card.out { cursor: pointer; } .staff .card.out .add { visibility: visible; }
 /* 執行部のSNS */
-.sns { margin: 14px 0 4px; text-align: center; }
+.sns { margin: 14px 0 4px; text-align: center; grid-column: 1 / -1; width: 100%; max-width: 420px; justify-self: center; }
 .sns p { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
-.sns div { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.sns-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; font-size: 13px; font-weight: 700; background: var(--surface); }
+.sns div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sns-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 8px; white-space: nowrap; min-width: 0; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; font-size: 13px; font-weight: 700; background: var(--surface); }
 .sns-btn svg { width: 18px; height: 18px; }
 .sns-btn.ig svg { color: #c13584; }
 .show-place { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 6px 0 2px; font-size: 15px; color: var(--ink); }

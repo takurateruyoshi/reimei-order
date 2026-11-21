@@ -1,5 +1,5 @@
 import { SHOP_NAME, SHEET_URL } from "./config.js";
-import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton } from "./api.js";
+import { call, newId, popRedirectToken, DEMO, savedStaffKey, saveStaffKey, renderGoogleButton, watchRev } from "./api.js";
 import { startQRStream, scanStudentCard } from "./scan.js";
 import { esc, pad, yen, lineName, tempCls, autoUpdate, cupSVG, stockGauge, groupMenu, ID_ICON, COIN_ICON, pullToRefresh, fitText } from "./ui.js";
 
@@ -132,7 +132,11 @@ function apply(r) {
   orders = r.orders.sort((a, b) => a.no - b.no);
   render();
 }
+// 同時に何回も呼ばれたら、今の読み込みが終わってからもう1回だけ読む
+let refreshing = false, refreshAgain = false;
 async function refresh() {
+  if (refreshing) { refreshAgain = true; return; }
+  refreshing = true;
   try {
     await flushQueue();
     const d = await call("staffList", { staffKey: key });
@@ -144,6 +148,9 @@ async function refresh() {
   } catch (e) {
     if (e.network) $("netOff").hidden = false;
     if (e.message === "notStaff") { saveStaffKey(null); location.reload(); }
+  } finally {
+    refreshing = false;
+    if (refreshAgain) { refreshAgain = false; refresh(); }
   }
 }
 async function act(payload, msg) {
@@ -497,11 +504,14 @@ async function flushQueue() {
     render();
   }
 }
-// パソコン：15秒ごとに最新にする（貯まった分もこのとき送る）。スマホは今までどおり「下に引く」とき
+// 自動で最新にする：2秒ごとに「更新番号」（中継サーバーがまとめるので軽い）を確かめ、変わったらすぐ一覧を読み直す。
+// 念のため8秒ごとにも読み直す。「注文をすべて消す」を押しかけている間は描き直さない
 let autoTimer = null;
 function startAuto() {
   if (autoTimer) return;
-  autoTimer = setInterval(() => { if (isPC() || queue.length) refresh(); }, 15000);
+  const tick = () => { if (!resetArmed && !document.hidden) refresh(); };
+  autoTimer = setInterval(tick, 8000);
+  watchRev(tick, 2000);
   addEventListener("online", () => refresh());
 }
 const numLabel = (o) => pad(o?.no);

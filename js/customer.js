@@ -571,7 +571,7 @@ function renderTickets() {
         <div class="qr" aria-label="受け渡し用のQRコード">${qrSVG(pickupURL(o.id))}</div>
       </div>
     </article>`;
-  }).join("") + (active.length ? snsHtml() : "");
+  }).join("");
   $("tickets").classList.toggle("many", active.length > 1);
 
   const readyIds = new Set(active.filter((o) => o.status === "ready").map((o) => o.id));
@@ -591,6 +591,7 @@ function showDone(list) {
 }
 $("doneClose").onclick = () => { $("done").hidden = true; };
 $("doneSns").html = snsHtml();
+$("ticketSns").html = snsHtml();
 // 執行部のSNSが押された数を数える（どの画面のボタンでも）
 document.addEventListener("click", (e) => {
   const a = e.target.closest("[data-sns]");
@@ -623,6 +624,7 @@ function applyMode() {
   const t = has && (mode || "ticket") === "ticket";   // 受け取り待ちがあれば、開いたときは受け取り画面から
   $("tcount").textContent = has ? activeCount : "";
   $("tickets").hidden = !t;
+  $("ticketSns").hidden = !t;
   const step = null;   // 手順は注文の確認シートの中で進める
   renderGate(step);
   const off = t || !!step;
