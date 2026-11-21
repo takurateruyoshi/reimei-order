@@ -340,12 +340,21 @@ $("openSw").onclick = () => {
   act({ action: "setConfig", open: st.open }, st.open ? "受付を始めました" : "受付を止めました");
 };
 $("soldOut").addEventListener("click", (e) => {
+  // モバイルだけの売り切れ（お客さんの画面だけ止める）
+  const mb = e.target.closest("[data-msold]");
+  if (mb) {
+    const m = byCode(mb.dataset.msold);
+    m.mobileSoldOut = !m.mobileSoldOut;
+    render();
+    act({ action: "setConfig", mobileSoldOut: { [m.code]: m.mobileSoldOut } }, m.mobileSoldOut ? "モバイルで売り切れにしました" : "モバイルで販売中に戻しました");
+    return;
+  }
   const b = e.target.closest("[data-sold]");
   if (!b) return;
   const m = byCode(b.dataset.sold);
   m.soldOut = !m.soldOut;
   render();
-  act({ action: "setConfig", soldOut: { [m.code]: m.soldOut } }, m.soldOut ? "売り切れにしました" : "販売中に戻しました");
+  act({ action: "setConfig", soldOut: { [m.code]: m.soldOut } }, m.soldOut ? "店頭で売り切れにしました" : "店頭で販売中に戻しました");
 });
 
 $("cCodes").addEventListener("click", (e) => {
@@ -629,7 +638,8 @@ function render() {
   $("openLabel").textContent = st.open ? "受付中（お客さんが注文できます）" : "受付停止中";
   $("soldOut").html = st.menu.map(viewOf).map((m) => `<div class="row">${cupSVG(m)}<span class="code">${esc(m.code)}</span>
     <span style="flex:1;min-width:0">${esc(lineName(m))} ${m.remaining !== null ? `<small class="muted">のこり${m.remaining}</small>` : ""}${m.mobileLeft != null ? ` <small class="muted">（モバイル枠のこり${m.mobileLeft}/${m.mobileCap}）</small>` : ""}${stockGauge(m)}</span>
-    <button class="switch" role="switch" aria-checked="${!m.soldOut}" data-sold="${m.code}" aria-label="${esc(lineName(m))} 販売中"></button></div>`).join("");
+    <span class="sw2"><small>店頭</small><button class="switch" role="switch" aria-checked="${!m.soldOut}" data-sold="${m.code}" aria-label="${esc(lineName(m))} 店頭で販売中"></button></span>
+    <span class="sw2"><small>モバイル</small><button class="switch" role="switch" aria-checked="${!m.mobileSoldOut}" data-msold="${m.code}" aria-label="${esc(lineName(m))} モバイルで販売中"></button></span></div>`).join("");
 
   const valid = orders.filter((o) => o.status !== "cancel");
   const cups = (arr) => arr.reduce((a, o) => a + o.lines.reduce((b, l) => b + l.qty, 0), 0);

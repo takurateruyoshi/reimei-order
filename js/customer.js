@@ -665,6 +665,11 @@ render();
 // その間に売り切れても、注文時にサーバーが確かめて最新を読み直す
 const refresh = () => Promise.all([loadState(), pollTickets()]);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+// メニューを見ている間は、15秒ごとに残り数・売り切れを読み直す（中継サーバーがまとめるので軽い）
+setInterval(() => {
+  if (document.hidden || !$("tickets").hidden || !$("sheet").hidden || !$("tsheet").hidden || pending || sending) return;
+  loadState();
+}, 15000);
 pullToRefresh(refresh, () => !$("sheet").hidden || !$("tsheet").hidden);
 
 

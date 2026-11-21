@@ -369,6 +369,7 @@ async function demoCall(action, p) {
       if (p.day) c.day = Number(p.day);
       if (typeof p.open === "boolean") c.open = p.open;
       if (p.soldOut) s.menu.forEach((m) => { if (m.code in p.soldOut) m.soldOut = !!p.soldOut[m.code]; });
+      if (p.mobileSoldOut) s.menu.forEach((m) => { if (m.code in p.mobileSoldOut) m.mobileSoldOut = !!p.mobileSoldOut[m.code]; });
       if (typeof p.notice === "string") c.notice = p.notice.trim().slice(0, 300);
       if (typeof p.staffNotice === "string") c.staffNotice = p.staffNotice.trim().slice(0, 300);
       demoSave(s);
