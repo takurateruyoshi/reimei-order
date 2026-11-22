@@ -99,3 +99,21 @@ h4 small { font-weight: 500; opacity: .85; }
 .zlist { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; font-size: 12.5px; }
 .zlist li { display: flex; gap: 6px; align-items: flex-start; }
 .tlist { margin: 0 0 6px; padding-left: 18px; font-size: 13px; display: grid; gap: 4px; }
+
+/* 付箋：左上の角が指した場所（右寄りの所では右上の角） */
+.note { position: absolute; z-index: 2; max-width: 46%; min-width: 92px; padding: 5px 7px 6px; background: #fff8c9; border-left: 4px solid var(--c); border-radius: 2px 8px 8px 8px; box-shadow: 0 3px 8px rgb(0 0 0 / .25); font: 500 11.5px/1.35 var(--f-body); color: var(--ink); cursor: grab; touch-action: none; user-select: none; }
+.note::before { content: ""; position: absolute; left: -9px; top: -9px; width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px #fff; }
+.note.flip { transform: translateX(-100%); border-left: 0; border-right: 4px solid var(--c); border-radius: 8px 2px 8px 8px; }
+.note.flip::before { left: auto; right: -9px; }
+.note-head { display: flex; align-items: center; gap: 4px; font-weight: 700; color: var(--c); font-size: 11px; }
+.note-head i { font-style: normal; }
+.note-head small { margin-left: auto; color: var(--muted); font-weight: 500; }
+.note-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; word-break: break-all; }
+.note.dragging { cursor: grabbing; box-shadow: 0 8px 18px rgb(0 0 0 / .35); z-index: 5; }
+.note.other { background: #fff; opacity: .82; cursor: pointer; border-style: dashed; box-shadow: 0 1px 4px rgb(0 0 0 / .18); z-index: 1; }
+.note.other.front { opacity: 1; z-index: 6; }
+.note.other.front .note-text { -webkit-line-clamp: unset; }
+.others-tog { display: block; margin: 8px auto 0; }
+.danger-t { color: var(--danger); border-color: #f0c9c4; }
+.cmp-img.notes .note { cursor: default; font-size: 11px; }
+.pinlist li .ghost + .ghost { margin-left: -2px; }

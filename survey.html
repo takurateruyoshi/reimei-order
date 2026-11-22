@@ -48,11 +48,12 @@
 
     <section class="sv-card">
       <h2><span>3</span>画面で指して教える</h2>
-      <p class="muted">画面を選んで、気になった場所をタップしてください。何か所でも付けられます。</p>
+      <p class="muted">画面を選んで、気になった場所をタップすると付箋が貼れます。付箋はドラッグで動かせて、タップで直せます。何枚でも貼れます。</p>
       <div class="shots" id="shots"></div>
       <div class="stage" id="stage">
         <div class="stage-img" id="stageImg"><img id="stageShot" alt=""></div>
-        <p class="stage-hint" id="stageHint">↑ 気になった場所をタップ</p>
+        <p class="stage-hint" id="stageHint">↑ 気になった場所をタップして付箋を貼る</p>
+        <button type="button" class="ghost others-tog" id="othersTog" hidden></button>
       </div>
       <ol class="pinlist" id="pinList"></ol>
     </section>
@@ -90,7 +91,7 @@
       <div id="resRates"></div>
     </section>
     <section class="sv-card">
-      <h2>画面ごとの指摘</h2>
+      <h2>画面ごとの付箋</h2>
       <div class="legend kinds" id="kindLegend"></div>
       <p class="muted">左がA、右がB。画面を押すと大きく見られます。</p>
       <div class="cmp-grid" id="resShots"></div>
@@ -102,10 +103,10 @@
 
 <div class="sv-pop" id="pop" hidden>
   <div class="sv-pop-box">
-    <h3>この場所は？</h3>
+    <h3 id="popTitle">付箋を貼る</h3>
     <div class="chips" id="popKinds"></div>
     <textarea id="popText" rows="3" placeholder="どうだったか（例：押しにくい、文字が小さい）"></textarea>
-    <div class="pop-btns"><button type="button" class="ghost" id="popCancel">やめる</button><button type="button" class="go" id="popOk">付ける</button></div>
+    <div class="pop-btns"><button type="button" class="ghost danger-t" id="popDel" hidden>はがす</button><span style="flex:1"></span><button type="button" class="ghost" id="popCancel">やめる</button><button type="button" class="go" id="popOk">貼る</button></div>
   </div>
 </div>
 

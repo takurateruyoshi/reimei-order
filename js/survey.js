@@ -80,7 +80,7 @@ function renderShots() {
   const groups = [...new Set(SCREENS.map((s) => s[0]))];
   $("shots").innerHTML = groups.map((g) => `<div class="shot-group"><small>${g === "客" ? "お客さんの画面" : g === "スタッフ" ? "スタッフ画面" : "スプレッドシート"}</small><div class="shot-row">
     ${SCREENS.filter((s) => s[0] === g).map(([, id, name]) => {
-      const n = ans.pins.filter((p) => p.screen === id).length;
+      const n = ans.pins.filter((p) => p.screen === id).length + (showOthers ? others.filter((p) => p.screen === id).length : 0);
       return `<button type="button" class="shot ${isWide(id) ? "w" : ""}" data-screen="${id}" aria-pressed="${id === screen}"><img src="${imgOf(id)}" alt="" loading="lazy"><span>${esc(name)}</span>${n ? `<b>${n}</b>` : ""}</button>`;
     }).join("")}</div></div>`).join("");
 }
@@ -92,43 +92,108 @@ $("shots").addEventListener("click", (e) => {
   renderStage();
 });
 
+// 結果の一覧などで使う小さい丸印
 function pinHtml(p, i, extra = "") {
   const k = kindOf(p.kind);
   return `<span class="pin ${extra}" style="left:${p.x * 100}%;top:${p.y * 100}%;--c:${k.color}" title="${esc(k.label)}${p.text ? "：" + esc(p.text) : ""}">${i == null ? k.mark : i + 1}</span>`;
+}
+// 付箋：左上の角（とがった所）が指した場所。自分の付箋はドラッグで動かせる
+function noteHtml(p, { i = null, other = false } = {}) {
+  const k = kindOf(p.kind);
+  const flip = p.x > 0.6 ? " flip" : "";
+  return `<div class="note${other ? " other" : ""}${flip}" ${i != null ? `data-i="${i}"` : ""} style="left:${p.x * 100}%;top:${p.y * 100}%;--c:${k.color}">
+    <span class="note-head"><i>${k.mark}</i>${esc(k.label)}${i != null ? `<small>${i + 1}</small>` : other ? `<small>ほかの人</small>` : ""}</span>${p.text ? `<span class="note-text">${esc(p.text)}</span>` : ""}</div>`;
+}
+let others = [], showOthers = true;
+async function loadOthers() {
+  try {
+    const r = await call("surveyResults", { staffKey: key });
+    others = r.pins || [];
+  } catch { others = []; }
+  renderShots();
+  renderStage();
 }
 function renderStage() {
   $("stageShot").src = imgOf(screen);
   $("stageShot").alt = screenName(screen);
   $("stageImg").classList.toggle("w", isWide(screen));
-  $("stageImg").querySelectorAll(".pin").forEach((e) => e.remove());
-  ans.pins.forEach((p, i) => { if (p.screen === screen) $("stageImg").insertAdjacentHTML("beforeend", pinHtml(p, i)); });
+  $("stageImg").querySelectorAll(".note,.pin").forEach((e) => e.remove());
+  if (showOthers) others.forEach((p) => { if (p.screen === screen) $("stageImg").insertAdjacentHTML("beforeend", noteHtml(p, { other: true })); });
+  ans.pins.forEach((p, i) => { if (p.screen === screen) $("stageImg").insertAdjacentHTML("beforeend", noteHtml(p, { i })); });
+  const n = others.filter((p) => p.screen === screen).length;
+  $("othersTog").hidden = !others.length;
+  $("othersTog").textContent = showOthers ? `ほかの人の付箋を隠す（この画面 ${n}枚）` : `ほかの人の付箋を見る（この画面 ${n}枚）`;
   $("pinList").innerHTML = ans.pins.map((p, i) => {
     const k = kindOf(p.kind);
-    return `<li><span class="pin static" style="--c:${k.color}">${i + 1}</span><span><b>${esc(screenName(p.screen))}</b>　${esc(k.label)}${p.text ? `<br><small>${esc(p.text)}</small>` : ""}</span><button type="button" class="ghost" data-del="${i}">消す</button></li>`;
+    return `<li><span class="pin static" style="--c:${k.color}">${i + 1}</span><span><b>${esc(screenName(p.screen))}</b>　${esc(k.label)}${p.text ? `<br><small>${esc(p.text)}</small>` : ""}</span><button type="button" class="ghost" data-edit="${i}">直す</button><button type="button" class="ghost" data-del="${i}">はがす</button></li>`;
   }).join("");
 }
+$("othersTog").onclick = () => { showOthers = !showOthers; renderStage(); };
 $("pinList").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-del]");
-  if (!b) return;
-  ans.pins.splice(Number(b.dataset.del), 1);
-  renderShots();
-  renderStage();
+  const d = e.target.closest("[data-del]"), ed = e.target.closest("[data-edit]");
+  if (d) { ans.pins.splice(Number(d.dataset.del), 1); renderShots(); renderStage(); }
+  if (ed) { const i = Number(ed.dataset.edit); screen = ans.pins[i].screen; renderShots(); renderStage(); openPop(i); }
 });
 
-// タップした場所に印を付ける（種類とひとことを聞く）
-let draft = null, draftKind = "hard";
-$("stageImg").addEventListener("click", (e) => {
-  if (e.target.closest(".pin")) return;
+// 何もない所をタップ → 付箋を貼る。自分の付箋はドラッグで移動、タップで直す。ほかの人の付箋はタップで前に出す
+const posOf = (e) => {
   const r = $("stageShot").getBoundingClientRect();
-  const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-  if (x < 0 || x > 1 || y < 0 || y > 1) return;
-  draft = { screen, x: +x.toFixed(4), y: +y.toFixed(4) };
-  $("stageImg").insertAdjacentHTML("beforeend", pinHtml({ ...draft, kind: draftKind }, null, "draft"));
-  $("popText").value = "";
+  return { x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) };
+};
+let drag = null, suppressClick = false;
+$("stageImg").addEventListener("pointerdown", (e) => {
+  const el = e.target.closest(".note[data-i]");
+  if (!el) return;
+  e.preventDefault();
+  const i = Number(el.dataset.i), p = ans.pins[i], start = posOf(e);
+  drag = { el, i, sx: e.clientX, sy: e.clientY, dx: start.x - p.x, dy: start.y - p.y, moved: false };
+  el.setPointerCapture(e.pointerId);
+  el.classList.add("dragging");
+});
+$("stageImg").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+  drag.moved = true;
+  const q = posOf(e), p = ans.pins[drag.i];
+  p.x = +Math.max(0, Math.min(1, q.x - drag.dx)).toFixed(4);
+  p.y = +Math.max(0, Math.min(1, q.y - drag.dy)).toFixed(4);
+  drag.el.style.left = p.x * 100 + "%";
+  drag.el.style.top = p.y * 100 + "%";
+  drag.el.classList.toggle("flip", p.x > 0.6);
+});
+const endDrag = () => {
+  if (!drag) return;
+  const { i, moved, el } = drag;
+  el.classList.remove("dragging");
+  drag = null;
+  suppressClick = true;
+  setTimeout(() => (suppressClick = false), 0);
+  if (!moved) openPop(i);
+};
+$("stageImg").addEventListener("pointerup", endDrag);
+$("stageImg").addEventListener("pointercancel", endDrag);
+$("stageImg").addEventListener("click", (e) => {
+  if (suppressClick || e.target.closest(".note[data-i]")) return;
+  const o = e.target.closest(".note.other");
+  if (o) { $("stageImg").querySelectorAll(".note.other.front").forEach((x) => x !== o && x.classList.remove("front")); o.classList.toggle("front"); return; }
+  const q = posOf(e);
+  draft = { screen, x: +q.x.toFixed(4), y: +q.y.toFixed(4) };
+  openPop(null);
+});
+
+// 付箋の中身（種類とひとこと）。editing＝直している付箋の番号（新しく貼るときは null）
+let draft = null, draftKind = "hard", editing = null;
+function openPop(i) {
+  editing = i;
+  if (i != null) { draftKind = ans.pins[i].kind; $("popText").value = ans.pins[i].text || ""; }
+  else $("popText").value = "";
+  $("popTitle").textContent = i != null ? "付箋を直す" : "付箋を貼る";
+  $("popDel").hidden = i == null;
+  $("popOk").textContent = i != null ? "直す" : "貼る";
   renderKinds();
   $("pop").hidden = false;
   setTimeout(() => $("popText").focus(), 50);
-});
+}
 function renderKinds() {
   $("popKinds").innerHTML = KINDS.map((k) => `<button type="button" class="chip" data-kind="${k.k}" aria-pressed="${k.k === draftKind}" style="--c:${k.color}"><i>${k.mark}</i>${k.label}</button>`).join("");
 }
@@ -137,13 +202,14 @@ $("popKinds").addEventListener("click", (e) => {
   if (!b) return;
   draftKind = b.dataset.kind;
   renderKinds();
-  const d = $("stageImg").querySelector(".pin.draft");
-  if (d) { d.style.setProperty("--c", kindOf(draftKind).color); d.textContent = kindOf(draftKind).mark; }
 });
-const closePop = () => { $("pop").hidden = true; draft = null; renderStage(); };
+const closePop = () => { $("pop").hidden = true; draft = null; editing = null; renderStage(); };
 $("popCancel").onclick = closePop;
+$("popDel").onclick = () => { if (editing != null) ans.pins.splice(editing, 1); closePop(); renderShots(); };
 $("popOk").onclick = () => {
-  if (draft) ans.pins.push({ ...draft, kind: draftKind, text: $("popText").value.trim().slice(0, 300) });
+  const text = $("popText").value.trim().slice(0, 300);
+  if (editing != null) Object.assign(ans.pins[editing], { kind: draftKind, text });
+  else if (draft) ans.pins.push({ ...draft, kind: draftKind, text });
   closePop();
   renderShots();
 };
@@ -226,7 +292,7 @@ $("resShots").addEventListener("click", (e) => {
   const list = (g) => res.pins.filter((p) => p.screen === id && inGroup(g)(p));
   const side = (g, cls) => {
     const ps = list(g);
-    return `<div class="zoom-side"><h4 class="${cls}">${esc(g)}<small>${ps.length}件</small></h4><div class="cmp-img ${isWide(id) ? "w" : ""}"><img src="${imgOf(id)}" alt="">${ps.map((p, i) => pinHtml(p, i)).join("")}</div>
+    return `<div class="zoom-side"><h4 class="${cls}">${esc(g)}<small>${ps.length}件</small></h4><div class="cmp-img notes ${isWide(id) ? "w" : ""}"><img src="${imgOf(id)}" alt="">${ps.map((p) => noteHtml(p, { other: true })).join("")}</div>
       <ol class="zlist">${ps.map((p, i) => `<li><span class="pin static" style="--c:${kindOf(p.kind).color}">${i + 1}</span>${esc(kindOf(p.kind).label)}${p.text ? `：${esc(p.text)}` : ""}</li>`).join("")}</ol></div>`;
   };
   $("zoomTitle").textContent = screenName(id);
@@ -269,6 +335,7 @@ if (!key) {
   renderRates();
   renderShots();
   renderStage();
+  loadOthers();
   setupGroups();
   show(location.hash === "#results" ? "results" : "answer");
 }
