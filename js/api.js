@@ -270,6 +270,18 @@ async function demoCall(action, p) {
     case "maintain":
       staff();
       return { ok: true };
+    case "surveySubmit": {
+      staff();
+      const list = JSON.parse(localStorage.getItem("reimei-demo-survey") || "[]");
+      list.push({ roles: p.roles || [], days: p.days || "", ratings: p.ratings || {}, pins: p.pins || [], texts: p.texts || {} });
+      localStorage.setItem("reimei-demo-survey", JSON.stringify(list));
+      return { ok: true };
+    }
+    case "surveyResults": {
+      staff();
+      const list = JSON.parse(localStorage.getItem("reimei-demo-survey") || "[]");
+      return { responses: list.map(({ pins, ...r }) => r), pins: list.flatMap((r) => (r.pins || []).map((x) => ({ ...x, roles: r.roles }))) };
+    }
     case "staffMe":
       staff();
       return { email: "staff@example.com" };

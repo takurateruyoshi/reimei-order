@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>スタッフアンケート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/survey.css">
+</head>
+<body class="sv">
+<div class="sv-wrap">
+  <header class="sv-top">
+    <div class="brand"><small>スタッフ</small><b>アンケート</b></div>
+    <nav class="sv-tabs" role="tablist">
+      <button type="button" role="tab" data-view="answer" aria-selected="true">答える</button>
+      <button type="button" role="tab" data-view="results" aria-selected="false">結果を比べる</button>
+    </nav>
+  </header>
+
+  <section class="sv-gate" id="gate" hidden>
+    <h2>スタッフ画面でログインしてから開いてください</h2>
+    <p>このアンケートは、スタッフ画面と同じログインを使います。</p>
+    <a class="go" href="staff.html">スタッフ画面を開く</a>
+  </section>
+
+  <main id="answer" hidden>
+    <p class="sv-lead">黎明祭のモバイルオーダーの仕組みは来年も使います。直したほうがいい所を教えてください。5分ほどで終わります。</p>
+
+    <section class="sv-card">
+      <h2><span>1</span>あなたについて</h2>
+      <h3>担当した仕事（いくつでも）</h3>
+      <div class="chips" id="roles"></div>
+      <h3>入った日</h3>
+      <div class="chips" id="days"></div>
+      <h3>入った時間帯（いくつでも）</h3>
+      <div class="chips" id="hours"></div>
+    </section>
+
+    <section class="sv-card">
+      <h2><span>2</span>使いやすさ</h2>
+      <p class="muted">1＝使いにくい　5＝使いやすい。使っていない機能は「—」のままでOKです。</p>
+      <div id="rates"></div>
+    </section>
+
+    <section class="sv-card">
+      <h2><span>3</span>画面で指して教える</h2>
+      <p class="muted">画面を選んで、気になった場所をタップしてください。何か所でも付けられます。</p>
+      <div class="shots" id="shots"></div>
+      <div class="stage" id="stage">
+        <div class="stage-img" id="stageImg"><img id="stageShot" alt=""></div>
+        <p class="stage-hint" id="stageHint">↑ 気になった場所をタップ</p>
+      </div>
+      <ol class="pinlist" id="pinList"></ol>
+    </section>
+
+    <section class="sv-card">
+      <h2><span>4</span>ひとこと</h2>
+      <label class="tx"><b>よかったこと</b><textarea id="tGood" rows="2"></textarea></label>
+      <label class="tx"><b>困ったこと・止まったこと（いつ・何をしていたか）</b><textarea id="tTrouble" rows="3"></textarea></label>
+      <label class="tx"><b>来年あったら助かる機能</b><textarea id="tWish" rows="2"></textarea></label>
+      <label class="tx"><b>その他</b><textarea id="tOther" rows="2"></textarea></label>
+    </section>
+
+    <p class="err" id="err" hidden></p>
+    <button type="button" class="go wide" id="send">送る</button>
+  </main>
+
+  <section class="sv-card sv-done" id="thanks" hidden>
+    <h2>ありがとうございました</h2>
+    <p>回答を送りました。ほかの人の回答と比べられます。</p>
+    <button type="button" class="go wide" id="toResults">結果を比べる</button>
+  </section>
+
+  <main id="results" hidden>
+    <section class="sv-card">
+      <div class="cmp-bar">
+        <label>比べる：<select id="grpA"></select></label>
+        <span>と</span>
+        <label><select id="grpB"></select></label>
+      </div>
+      <p class="muted" id="resCount"></p>
+    </section>
+    <section class="sv-card">
+      <h2>使いやすさ（平均）</h2>
+      <div class="legend"><span class="la">A</span><span id="legA"></span><span class="lb">B</span><span id="legB"></span></div>
+      <div id="resRates"></div>
+    </section>
+    <section class="sv-card">
+      <h2>画面ごとの指摘</h2>
+      <div class="legend kinds" id="kindLegend"></div>
+      <p class="muted">左がA、右がB。画面を押すと大きく見られます。</p>
+      <div class="cmp-grid" id="resShots"></div>
+    </section>
+    <section class="sv-card" id="resTexts"></section>
+  </main>
+</div>
+
+<div class="sv-pop" id="pop" hidden>
+  <div class="sv-pop-box">
+    <h3>この場所は？</h3>
+    <div class="chips" id="popKinds"></div>
+    <textarea id="popText" rows="3" placeholder="どうだったか（例：押しにくい、文字が小さい）"></textarea>
+    <div class="pop-btns"><button type="button" class="ghost" id="popCancel">やめる</button><button type="button" class="go" id="popOk">付ける</button></div>
+  </div>
+</div>
+
+<div class="sv-pop" id="zoom" hidden>
+  <div class="sv-pop-box wide">
+    <div class="zoom-head"><h3 id="zoomTitle"></h3><button type="button" class="x" id="zoomClose" aria-label="閉じる">×</button></div>
+    <div class="zoom-body" id="zoomBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="js/survey.js"></script>
+</body>
+</html>
