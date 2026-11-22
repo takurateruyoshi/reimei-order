@@ -198,12 +198,16 @@ function renderResults() {
     return v.length ? { m: v.reduce((a, n) => a + n, 0) / v.length, n: v.length } : null;
   };
   const bar = (x, cls) => x
-    ? `<div class="bar ${cls}"><i style="width:${(x.m / 5) * 100}%"></i><b>${x.m.toFixed(1)}</b><small>${x.n}人</small></div>`
-    : `<div class="bar ${cls} none"><small>回答なし</small></div>`;
+    ? `<div class="bar ${cls}"><span class="track"><i style="width:${(x.m / 5) * 100}%"></i></span><b>${x.m.toFixed(1)}</b><small>${x.n}人</small></div>`
+    : `<div class="bar ${cls} none"><span class="track"></span><b>—</b><small>回答なし</small></div>`;
   $("resRates").innerHTML = FEATURES.map(([k, label]) => `<div class="rrow"><span class="rate-name">${esc(label)}</span><div class="bars">${bar(avg(ra, k), "a")}${bar(avg(rb, k), "b")}</div></div>`).join("");
 
   $("kindLegend").innerHTML = KINDS.map((k) => `<span><i class="pin static" style="--c:${k.color}">${k.mark}</i>${k.label}</span>`).join("");
-  $("resShots").innerHTML = SCREENS.map(([, id, name]) => {
+  // 指摘の多い画面から並べる。指摘のない画面は「すべての画面」を押したときだけ出す
+  const cnt = (id) => pa.filter((p) => p.screen === id).length + pb.filter((p) => p.screen === id).length;
+  const list = SCREENS.filter(([, id]) => showAll || cnt(id) > 0).sort((x, y) => cnt(y[1]) - cnt(x[1]));
+  $("allShots").textContent = showAll ? "指摘のある画面だけにする" : `すべての画面を見る（${SCREENS.length}）`;
+  $("resShots").innerHTML = (list.length ? "" : `<p class="muted">まだ指摘はありません</p>`) + list.map(([, id, name]) => {
     const a = pa.filter((p) => p.screen === id), b = pb.filter((p) => p.screen === id);
     const side = (list) => `<div class="cmp-img ${isWide(id) ? "w" : ""}"><img src="${imgOf(id)}" alt="" loading="lazy">${list.map((p) => pinHtml(p, null, "sm")).join("")}</div>`;
     return `<button type="button" class="cmp-cell" data-zoom="${id}"><span class="cmp-name">${esc(name)}<small>A ${a.length}・B ${b.length}</small></span><div class="cmp-pair">${side(a)}${side(b)}</div></button>`;
@@ -213,6 +217,8 @@ function renderResults() {
   $("resTexts").innerHTML = `<h2>ひとこと（A：${esc(A)}）</h2>` + [["good", "よかったこと"], ["trouble", "困ったこと"], ["wish", "来年ほしい機能"], ["other", "その他"]]
     .map(([f, label]) => { const t = texts(f); return `<h3>${label}<small>${t.length}件</small></h3>${t.length ? `<ul class="tlist">${t.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="muted">まだありません</p>`}`; }).join("");
 }
+let showAll = false;
+$("allShots").onclick = () => { showAll = !showAll; renderResults(); };
 $("resShots").addEventListener("click", (e) => {
   const b = e.target.closest("[data-zoom]");
   if (!b) return;
